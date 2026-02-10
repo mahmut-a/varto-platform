@@ -1,14 +1,21 @@
 import axios from "axios"
+import { Platform } from "react-native"
 
-// Android emülatörde localhost yerine 10.0.2.2 kullanılır
-// Fiziksel cihazda bilgisayarın IP adresini kullanın
-const BASE_URL = "http://10.0.2.2:9000"
+// Fiziksel cihazda bilgisayarın LAN IP adresini kullanın
+// Android emülatörde: 10.0.2.2
+const getBaseUrl = () => {
+    // Fiziksel cihaz için LAN IP — Expo Go terminalde gösterilen IP
+    return "http://10.103.39.75:9000"
+}
+
+const BASE_URL = getBaseUrl()
 
 const api = axios.create({
     baseURL: BASE_URL,
     headers: {
         "Content-Type": "application/json",
     },
+    withCredentials: true,
 })
 
 let authToken: string | null = null
@@ -19,9 +26,13 @@ export const setAuthToken = (token: string) => {
 }
 
 // ── Auth ──
+// Medusa v2 admin auth: POST /auth/user/emailpass → token, then use token for admin API
 export const login = async (email: string, password: string) => {
+    // Step 1: Authenticate and get JWT token
     const { data } = await api.post("/auth/user/emailpass", { email, password })
-    setAuthToken(data.token)
+    const token = data.token
+    if (!token) throw new Error("No token received")
+    setAuthToken(token)
     return data
 }
 
