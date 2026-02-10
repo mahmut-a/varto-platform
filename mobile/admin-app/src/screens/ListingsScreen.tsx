@@ -10,21 +10,22 @@ import {
     RefreshControl,
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
+import { colors, spacing, radius, typography } from "../theme/tokens"
 import { getListings, updateListing } from "../api/client"
 
-const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-    pending: { label: "Bekliyor", color: "#f59e0b" },
-    approved: { label: "Onaylı", color: "#10b981" },
-    rejected: { label: "Reddedildi", color: "#ef4444" },
-    expired: { label: "Süresi Doldu", color: "#64748b" },
+const STATUS_MAP: Record<string, { label: string; tag: keyof typeof colors.tag }> = {
+    pending: { label: "Bekliyor", tag: "orange" },
+    approved: { label: "Onaylı", tag: "green" },
+    rejected: { label: "Reddedildi", tag: "red" },
+    expired: { label: "Süresi Doldu", tag: "neutral" },
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-    rental: "🏠 Kiralık",
-    sale: "🏷️ Satılık",
-    job: "👷 İş İlanı",
-    service: "🔧 Hizmet",
-    other: "📦 Diğer",
+const CATEGORY_MAP: Record<string, string> = {
+    rental: "Kiralık",
+    sale: "Satılık",
+    job: "İş İlanı",
+    service: "Hizmet",
+    other: "Diğer",
 }
 
 export default function ListingsScreen() {
@@ -36,128 +37,141 @@ export default function ListingsScreen() {
         try {
             const data = await getListings()
             setListings(data || [])
-        } catch (err) {
-            console.error("Listings yüklenemedi:", err)
-        } finally {
+        } catch { } finally {
             setLoading(false)
             setRefreshing(false)
         }
     }
 
-    useEffect(() => {
-        fetchListings()
-    }, [])
+    useEffect(() => { fetchListings() }, [])
 
     const handleApprove = async (id: string) => {
         try {
             await updateListing(id, { status: "approved" })
-            setListings((prev) =>
-                prev.map((l) => (l.id === id ? { ...l, status: "approved" } : l))
-            )
-        } catch (err) {
-            Alert.alert("Hata", "Onaylama başarısız oldu.")
+            setListings((prev) => prev.map((l) => (l.id === id ? { ...l, status: "approved" } : l)))
+        } catch {
+            Alert.alert("Hata", "Onaylama başarısız.")
         }
     }
 
     const handleReject = async (id: string) => {
         try {
             await updateListing(id, { status: "rejected" })
-            setListings((prev) =>
-                prev.map((l) => (l.id === id ? { ...l, status: "rejected" } : l))
-            )
-        } catch (err) {
-            Alert.alert("Hata", "Reddetme başarısız oldu.")
+            setListings((prev) => prev.map((l) => (l.id === id ? { ...l, status: "rejected" } : l)))
+        } catch {
+            Alert.alert("Hata", "Reddetme başarısız.")
         }
     }
 
     if (loading) {
-        return (
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#10b981" />
-            </View>
-        )
+        return <View style={styles.center}><ActivityIndicator size="small" color={colors.fg.muted} /></View>
     }
 
     return (
-        <View style={styles.container}>
-            <FlatList
-                data={listings}
-                keyExtractor={(item) => item.id}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchListings() }} />}
-                contentContainerStyle={{ padding: 16 }}
-                renderItem={({ item }) => {
-                    const status = STATUS_CONFIG[item.status] || { label: item.status, color: "#64748b" }
-                    return (
-                        <View style={styles.card}>
-                            <View style={styles.cardHeader}>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.title}>{item.title}</Text>
-                                    <Text style={styles.category}>{CATEGORY_LABELS[item.category] || item.category}</Text>
-                                </View>
-                                <View style={[styles.statusBadge, { backgroundColor: status.color }]}>
-                                    <Text style={styles.statusText}>{status.label}</Text>
-                                </View>
+        <FlatList
+            style={styles.container}
+            data={listings}
+            keyExtractor={(item) => item.id}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchListings() }} tintColor={colors.fg.muted} />}
+            contentContainerStyle={{ padding: spacing.xl }}
+            ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+            renderItem={({ item }) => {
+                const status = STATUS_MAP[item.status] || { label: item.status, tag: "neutral" as const }
+                const tagColors = colors.tag[status.tag]
+
+                return (
+                    <View style={styles.card}>
+                        <View style={styles.cardRow}>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.title}>{item.title}</Text>
+                                <Text style={styles.meta}>{CATEGORY_MAP[item.category] || item.category}</Text>
                             </View>
-
-                            <Text style={styles.description} numberOfLines={2}>{item.description}</Text>
-
-                            <View style={styles.metaRow}>
-                                {item.price && (
-                                    <Text style={styles.price}>₺{Number(item.price).toLocaleString("tr-TR")}</Text>
-                                )}
-                                <Text style={styles.location}>📍 {item.location}</Text>
+                            <View style={[styles.tag, { backgroundColor: tagColors.bg }]}>
+                                <Text style={[styles.tagText, { color: tagColors.fg }]}>{status.label}</Text>
                             </View>
-
-                            <View style={styles.contactRow}>
-                                <Ionicons name="person-outline" size={14} color="#94a3b8" />
-                                <Text style={styles.contactText}>{item.contact_name} • {item.contact_phone}</Text>
-                            </View>
-
-                            {item.status === "pending" && (
-                                <View style={styles.actionRow}>
-                                    <TouchableOpacity style={styles.approveBtn} onPress={() => handleApprove(item.id)}>
-                                        <Ionicons name="checkmark" size={18} color="#fff" />
-                                        <Text style={styles.btnText}>Onayla</Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity style={styles.rejectBtn} onPress={() => handleReject(item.id)}>
-                                        <Ionicons name="close" size={18} color="#fff" />
-                                        <Text style={styles.btnText}>Reddet</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            )}
                         </View>
-                    )
-                }}
-                ListEmptyComponent={
-                    <View style={styles.emptyContainer}>
-                        <Ionicons name="megaphone-outline" size={48} color="#475569" />
-                        <Text style={styles.emptyText}>Henüz ilan yok</Text>
+
+                        <Text style={styles.description} numberOfLines={2}>{item.description}</Text>
+
+                        <View style={styles.metaRow}>
+                            {item.price != null && (
+                                <Text style={styles.price}>₺{Number(item.price).toLocaleString("tr-TR")}</Text>
+                            )}
+                            {item.location && <Text style={styles.location}>{item.location}</Text>}
+                        </View>
+
+                        <View style={styles.contactRow}>
+                            <Ionicons name="person-outline" size={13} color={colors.fg.muted} />
+                            <Text style={styles.contactText}>{item.contact_name} · {item.contact_phone}</Text>
+                        </View>
+
+                        {item.status === "pending" && (
+                            <View style={styles.actions}>
+                                <TouchableOpacity style={styles.approveBtn} onPress={() => handleApprove(item.id)} activeOpacity={0.7}>
+                                    <Text style={styles.approveBtnText}>Onayla</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity style={styles.rejectBtn} onPress={() => handleReject(item.id)} activeOpacity={0.7}>
+                                    <Text style={styles.rejectBtnText}>Reddet</Text>
+                                </TouchableOpacity>
+                            </View>
+                        )}
                     </View>
-                }
-            />
-        </View>
+                )
+            }}
+            ListEmptyComponent={
+                <View style={styles.empty}><Text style={styles.emptyText}>Henüz ilan yok</Text></View>
+            }
+        />
     )
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: "#0f172a" },
-    loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#0f172a" },
-    card: { backgroundColor: "#1e293b", borderRadius: 16, padding: 16, marginBottom: 12 },
-    cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 },
-    title: { fontSize: 17, fontWeight: "700", color: "#f8fafc" },
-    category: { fontSize: 13, color: "#94a3b8", marginTop: 2 },
-    statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
-    statusText: { fontSize: 12, fontWeight: "600", color: "#fff" },
-    description: { fontSize: 14, color: "#cbd5e1", marginBottom: 8, lineHeight: 20 },
-    metaRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 },
-    price: { fontSize: 18, fontWeight: "800", color: "#10b981" },
-    location: { fontSize: 13, color: "#94a3b8" },
-    contactRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 },
-    contactText: { fontSize: 13, color: "#64748b" },
-    actionRow: { flexDirection: "row", gap: 10, marginTop: 8 },
-    approveBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: "#10b981", padding: 12, borderRadius: 10 },
-    rejectBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: "#ef4444", padding: 12, borderRadius: 10 },
-    btnText: { color: "#fff", fontWeight: "600", fontSize: 14 },
-    emptyContainer: { alignItems: "center", paddingTop: 60 },
-    emptyText: { fontSize: 16, color: "#475569", marginTop: 12 },
+    container: { flex: 1, backgroundColor: colors.bg.base },
+    center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: colors.bg.base },
+    card: {
+        backgroundColor: colors.bg.base,
+        borderRadius: radius.lg,
+        borderWidth: 1,
+        borderColor: colors.border.base,
+        padding: spacing.lg,
+    },
+    cardRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: spacing.sm },
+    title: { ...typography.h3 },
+    meta: { ...typography.small, marginTop: 2 },
+    tag: { paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: radius.sm },
+    tagText: { fontSize: 12, fontWeight: "500" },
+    description: { ...typography.body, marginBottom: spacing.md },
+    metaRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: spacing.sm },
+    price: { fontSize: 16, fontWeight: "600", color: colors.fg.base },
+    location: { ...typography.small },
+    contactRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginBottom: spacing.sm },
+    contactText: { ...typography.small },
+    actions: {
+        flexDirection: "row",
+        gap: spacing.sm,
+        marginTop: spacing.md,
+        paddingTop: spacing.md,
+        borderTopWidth: 1,
+        borderTopColor: colors.border.base,
+    },
+    approveBtn: {
+        flex: 1,
+        backgroundColor: colors.interactive,
+        paddingVertical: spacing.sm + 2,
+        borderRadius: radius.md,
+        alignItems: "center",
+    },
+    approveBtnText: { color: colors.fg.on_color, fontSize: 13, fontWeight: "500" },
+    rejectBtn: {
+        flex: 1,
+        backgroundColor: colors.bg.field,
+        paddingVertical: spacing.sm + 2,
+        borderRadius: radius.md,
+        alignItems: "center",
+        borderWidth: 1,
+        borderColor: colors.border.base,
+    },
+    rejectBtnText: { color: colors.fg.subtle, fontSize: 13, fontWeight: "500" },
+    empty: { alignItems: "center", paddingTop: 60 },
+    emptyText: { ...typography.body },
 })

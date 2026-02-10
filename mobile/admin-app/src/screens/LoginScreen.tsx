@@ -10,6 +10,7 @@ import {
     KeyboardAvoidingView,
     Platform,
 } from "react-native"
+import { colors, spacing, radius, typography } from "../theme/tokens"
 import { login } from "../api/client"
 
 interface LoginScreenProps {
@@ -30,7 +31,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
         try {
             await login(email, password)
             onLogin()
-        } catch (err: any) {
+        } catch {
             Alert.alert("Giriş Başarısız", "E-posta veya şifre hatalı.")
         } finally {
             setLoading(false)
@@ -43,10 +44,9 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
             behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
             <View style={styles.content}>
-                <View style={styles.logoContainer}>
-                    <Text style={styles.logo}>🏔️</Text>
-                    <Text style={styles.appName}>Varto Admin</Text>
-                    <Text style={styles.subtitle}>Yerel Süper Platform Yönetimi</Text>
+                <View style={styles.header}>
+                    <Text style={styles.title}>Varto</Text>
+                    <Text style={styles.subtitle}>Admin paneline giriş yapın</Text>
                 </View>
 
                 <View style={styles.form}>
@@ -56,30 +56,31 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
                         value={email}
                         onChangeText={setEmail}
                         placeholder="admin@varto.com"
-                        placeholderTextColor="#475569"
+                        placeholderTextColor={colors.fg.muted}
                         keyboardType="email-address"
                         autoCapitalize="none"
                     />
 
-                    <Text style={styles.label}>Şifre</Text>
+                    <Text style={[styles.label, { marginTop: spacing.lg }]}>Şifre</Text>
                     <TextInput
                         style={styles.input}
                         value={password}
                         onChangeText={setPassword}
                         placeholder="••••••••"
-                        placeholderTextColor="#475569"
+                        placeholderTextColor={colors.fg.muted}
                         secureTextEntry
                     />
 
                     <TouchableOpacity
-                        style={[styles.loginButton, loading && styles.loginButtonDisabled]}
+                        style={[styles.button, loading && styles.buttonDisabled]}
                         onPress={handleLogin}
                         disabled={loading}
+                        activeOpacity={0.8}
                     >
                         {loading ? (
-                            <ActivityIndicator color="#fff" />
+                            <ActivityIndicator color={colors.fg.on_color} size="small" />
                         ) : (
-                            <Text style={styles.loginButtonText}>Giriş Yap</Text>
+                            <Text style={styles.buttonText}>Giriş Yap</Text>
                         )}
                     </TouchableOpacity>
                 </View>
@@ -89,30 +90,30 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: "#0f172a" },
-    content: { flex: 1, justifyContent: "center", paddingHorizontal: 32 },
-    logoContainer: { alignItems: "center", marginBottom: 48 },
-    logo: { fontSize: 64 },
-    appName: { fontSize: 32, fontWeight: "800", color: "#f8fafc", marginTop: 12 },
-    subtitle: { fontSize: 14, color: "#94a3b8", marginTop: 4 },
+    container: { flex: 1, backgroundColor: colors.bg.base },
+    content: { flex: 1, justifyContent: "center", paddingHorizontal: spacing.xxxl },
+    header: { marginBottom: spacing.xxxl },
+    title: { fontSize: 24, fontWeight: "600", color: colors.fg.base, letterSpacing: -0.5 },
+    subtitle: { ...typography.body, marginTop: spacing.xs },
     form: {},
-    label: { fontSize: 14, fontWeight: "600", color: "#94a3b8", marginBottom: 6, marginTop: 16 },
+    label: { ...typography.label, marginBottom: spacing.sm },
     input: {
-        backgroundColor: "#1e293b",
-        borderRadius: 12,
-        padding: 16,
-        fontSize: 16,
-        color: "#f8fafc",
+        backgroundColor: colors.bg.field,
+        borderRadius: radius.md,
         borderWidth: 1,
-        borderColor: "#334155",
+        borderColor: colors.border.base,
+        paddingHorizontal: spacing.lg,
+        paddingVertical: spacing.md,
+        fontSize: 14,
+        color: colors.fg.base,
     },
-    loginButton: {
-        backgroundColor: "#6366f1",
-        borderRadius: 12,
-        padding: 16,
+    button: {
+        backgroundColor: colors.interactive,
+        borderRadius: radius.md,
+        paddingVertical: spacing.md + 2,
         alignItems: "center",
-        marginTop: 32,
+        marginTop: spacing.xxl,
     },
-    loginButtonDisabled: { opacity: 0.6 },
-    loginButtonText: { color: "#fff", fontSize: 16, fontWeight: "700" },
+    buttonDisabled: { opacity: 0.5 },
+    buttonText: { color: colors.fg.on_color, fontSize: 14, fontWeight: "500" },
 })

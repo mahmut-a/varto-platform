@@ -8,14 +8,15 @@ import {
     RefreshControl,
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
+import { colors, spacing, radius, typography } from "../theme/tokens"
 import { getAppointments } from "../api/client"
 
-const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-    pending: { label: "Bekliyor", color: "#f59e0b" },
-    confirmed: { label: "Onaylandı", color: "#10b981" },
-    rejected: { label: "Reddedildi", color: "#ef4444" },
-    cancelled: { label: "İptal", color: "#64748b" },
-    completed: { label: "Tamamlandı", color: "#3b82f6" },
+const STATUS_MAP: Record<string, { label: string; tag: keyof typeof colors.tag }> = {
+    pending: { label: "Bekliyor", tag: "orange" },
+    confirmed: { label: "Onaylandı", tag: "green" },
+    rejected: { label: "Reddedildi", tag: "red" },
+    cancelled: { label: "İptal", tag: "neutral" },
+    completed: { label: "Tamamlandı", tag: "blue" },
 }
 
 export default function AppointmentsScreen() {
@@ -27,102 +28,89 @@ export default function AppointmentsScreen() {
         try {
             const data = await getAppointments()
             setAppointments(data || [])
-        } catch (err) {
-            console.error("Appointments yüklenemedi:", err)
-        } finally {
+        } catch { } finally {
             setLoading(false)
             setRefreshing(false)
         }
     }
 
-    useEffect(() => {
-        fetchAppointments()
-    }, [])
+    useEffect(() => { fetchAppointments() }, [])
 
     if (loading) {
-        return (
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#8b5cf6" />
-            </View>
-        )
+        return <View style={styles.center}><ActivityIndicator size="small" color={colors.fg.muted} /></View>
     }
 
     return (
-        <View style={styles.container}>
-            <FlatList
-                data={appointments}
-                keyExtractor={(item) => item.id}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchAppointments() }} />}
-                contentContainerStyle={{ padding: 16 }}
-                renderItem={({ item }) => {
-                    const status = STATUS_CONFIG[item.status] || { label: item.status, color: "#64748b" }
-                    const date = new Date(item.date)
-                    return (
-                        <View style={styles.card}>
-                            <View style={styles.cardHeader}>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.serviceName}>{item.service_name}</Text>
-                                    <Text style={styles.duration}>{item.duration_minutes} dakika</Text>
-                                </View>
-                                <View style={[styles.statusBadge, { backgroundColor: status.color }]}>
-                                    <Text style={styles.statusText}>{status.label}</Text>
-                                </View>
-                            </View>
+        <FlatList
+            style={styles.container}
+            data={appointments}
+            keyExtractor={(item) => item.id}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchAppointments() }} tintColor={colors.fg.muted} />}
+            contentContainerStyle={{ padding: spacing.xl }}
+            ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+            renderItem={({ item }) => {
+                const status = STATUS_MAP[item.status] || { label: item.status, tag: "neutral" as const }
+                const tagColors = colors.tag[status.tag]
+                const date = new Date(item.date)
 
-                            <View style={styles.dateContainer}>
-                                <View style={styles.dateBox}>
-                                    <Text style={styles.dateDay}>{date.getDate()}</Text>
-                                    <Text style={styles.dateMonth}>
-                                        {date.toLocaleDateString("tr-TR", { month: "short" })}
-                                    </Text>
-                                </View>
-                                <View>
-                                    <Text style={styles.dateTime}>
-                                        {date.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}
-                                    </Text>
-                                    <Text style={styles.dateFull}>
-                                        {date.toLocaleDateString("tr-TR", { weekday: "long" })}
-                                    </Text>
-                                </View>
+                return (
+                    <View style={styles.card}>
+                        <View style={styles.cardRow}>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.name}>{item.service_name}</Text>
+                                <Text style={styles.meta}>{item.duration_minutes} dakika</Text>
                             </View>
-
-                            {item.notes && (
-                                <View style={styles.notesRow}>
-                                    <Ionicons name="document-text-outline" size={14} color="#94a3b8" />
-                                    <Text style={styles.notesText}>{item.notes}</Text>
-                                </View>
-                            )}
+                            <View style={[styles.tag, { backgroundColor: tagColors.bg }]}>
+                                <Text style={[styles.tagText, { color: tagColors.fg }]}>{status.label}</Text>
+                            </View>
                         </View>
-                    )
-                }}
-                ListEmptyComponent={
-                    <View style={styles.emptyContainer}>
-                        <Ionicons name="calendar-outline" size={48} color="#475569" />
-                        <Text style={styles.emptyText}>Henüz randevu yok</Text>
+
+                        <View style={styles.dateRow}>
+                            <Ionicons name="calendar-outline" size={14} color={colors.fg.muted} />
+                            <Text style={styles.dateText}>
+                                {date.toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" })}
+                            </Text>
+                            <Text style={styles.timeText}>
+                                {date.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}
+                            </Text>
+                        </View>
+
+                        {item.notes && (
+                            <View style={styles.notesRow}>
+                                <Ionicons name="document-text-outline" size={13} color={colors.fg.muted} />
+                                <Text style={styles.notesText}>{item.notes}</Text>
+                            </View>
+                        )}
                     </View>
-                }
-            />
-        </View>
+                )
+            }}
+            ListEmptyComponent={
+                <View style={styles.empty}><Text style={styles.emptyText}>Henüz randevu yok</Text></View>
+            }
+        />
     )
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: "#0f172a" },
-    loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#0f172a" },
-    card: { backgroundColor: "#1e293b", borderRadius: 16, padding: 16, marginBottom: 12 },
-    cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 },
-    serviceName: { fontSize: 17, fontWeight: "700", color: "#f8fafc" },
-    duration: { fontSize: 13, color: "#94a3b8", marginTop: 2 },
-    statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
-    statusText: { fontSize: 12, fontWeight: "600", color: "#fff" },
-    dateContainer: { flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 10 },
-    dateBox: { backgroundColor: "#6366f120", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 8, alignItems: "center" },
-    dateDay: { fontSize: 22, fontWeight: "800", color: "#6366f1" },
-    dateMonth: { fontSize: 12, color: "#6366f1", fontWeight: "600", textTransform: "uppercase" },
-    dateTime: { fontSize: 18, fontWeight: "700", color: "#f8fafc" },
-    dateFull: { fontSize: 13, color: "#94a3b8", textTransform: "capitalize" },
-    notesRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 },
-    notesText: { fontSize: 13, color: "#64748b" },
-    emptyContainer: { alignItems: "center", paddingTop: 60 },
-    emptyText: { fontSize: 16, color: "#475569", marginTop: 12 },
+    container: { flex: 1, backgroundColor: colors.bg.base },
+    center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: colors.bg.base },
+    card: {
+        backgroundColor: colors.bg.base,
+        borderRadius: radius.lg,
+        borderWidth: 1,
+        borderColor: colors.border.base,
+        padding: spacing.lg,
+    },
+    cardRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: spacing.md },
+    name: { ...typography.h3 },
+    meta: { ...typography.small, marginTop: 2 },
+    tag: { paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: radius.sm },
+    tagText: { fontSize: 12, fontWeight: "500" },
+    dateRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+    dateText: { ...typography.body },
+    timeText: { ...typography.label, marginLeft: "auto" },
+    notesRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginTop: spacing.sm },
+    notesText: { ...typography.small },
+    empty: { alignItems: "center", paddingTop: 60 },
+    emptyText: { ...typography.body },
 })

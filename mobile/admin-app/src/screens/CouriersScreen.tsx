@@ -8,13 +8,14 @@ import {
     RefreshControl,
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
+import { colors, spacing, radius, typography } from "../theme/tokens"
 import { getCouriers } from "../api/client"
 
-const VEHICLE_LABELS: Record<string, string> = {
-    motorcycle: "🏍️ Motosiklet",
-    bicycle: "🚲 Bisiklet",
-    car: "🚗 Araba",
-    on_foot: "🚶 Yaya",
+const VEHICLE_MAP: Record<string, string> = {
+    motorcycle: "Motosiklet",
+    bicycle: "Bisiklet",
+    car: "Araba",
+    on_foot: "Yaya",
 }
 
 export default function CouriersScreen() {
@@ -26,86 +27,88 @@ export default function CouriersScreen() {
         try {
             const data = await getCouriers()
             setCouriers(data || [])
-        } catch (err) {
-            console.error("Couriers yüklenemedi:", err)
-        } finally {
+        } catch { } finally {
             setLoading(false)
             setRefreshing(false)
         }
     }
 
-    useEffect(() => {
-        fetchCouriers()
-    }, [])
+    useEffect(() => { fetchCouriers() }, [])
 
     if (loading) {
-        return (
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#f59e0b" />
-            </View>
-        )
+        return <View style={styles.center}><ActivityIndicator size="small" color={colors.fg.muted} /></View>
     }
 
     return (
-        <View style={styles.container}>
-            <FlatList
-                data={couriers}
-                keyExtractor={(item) => item.id}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchCouriers() }} />}
-                contentContainerStyle={{ padding: 16 }}
-                renderItem={({ item }) => (
-                    <View style={styles.card}>
-                        <View style={styles.cardHeader}>
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.courierName}>{item.name}</Text>
-                                <Text style={styles.vehicleType}>
-                                    {VEHICLE_LABELS[item.vehicle_type] || item.vehicle_type}
+        <FlatList
+            style={styles.container}
+            data={couriers}
+            keyExtractor={(item) => item.id}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchCouriers() }} tintColor={colors.fg.muted} />}
+            contentContainerStyle={{ padding: spacing.xl }}
+            ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+            renderItem={({ item }) => (
+                <View style={styles.card}>
+                    <View style={styles.cardRow}>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.name}>{item.name}</Text>
+                            <Text style={styles.meta}>{VEHICLE_MAP[item.vehicle_type] || item.vehicle_type}</Text>
+                        </View>
+                        <View style={styles.tags}>
+                            <View style={[styles.tag, item.is_active ? styles.tagGreen : styles.tagRed]}>
+                                <Text style={[styles.tagText, { color: item.is_active ? colors.tag.green.fg : colors.tag.red.fg }]}>
+                                    {item.is_active ? "Aktif" : "Pasif"}
                                 </Text>
                             </View>
-                            <View style={styles.badges}>
-                                <View style={[styles.badge, { backgroundColor: item.is_active ? "#10b981" : "#ef4444" }]}>
-                                    <Text style={styles.badgeText}>{item.is_active ? "Aktif" : "Pasif"}</Text>
-                                </View>
-                                <View style={[styles.badge, { backgroundColor: item.is_available ? "#3b82f6" : "#64748b" }]}>
-                                    <Text style={styles.badgeText}>{item.is_available ? "Müsait" : "Meşgul"}</Text>
-                                </View>
+                            <View style={[styles.tag, item.is_available ? styles.tagBlue : styles.tagNeutral]}>
+                                <Text style={[styles.tagText, { color: item.is_available ? colors.tag.blue.fg : colors.fg.muted }]}>
+                                    {item.is_available ? "Müsait" : "Meşgul"}
+                                </Text>
                             </View>
                         </View>
-                        <View style={styles.infoRow}>
-                            <Ionicons name="call-outline" size={16} color="#94a3b8" />
-                            <Text style={styles.infoText}>{item.phone}</Text>
+                    </View>
+
+                    <View style={styles.detailRow}>
+                        <Ionicons name="call-outline" size={14} color={colors.fg.muted} />
+                        <Text style={styles.detail}>{item.phone}</Text>
+                    </View>
+                    {item.email && (
+                        <View style={styles.detailRow}>
+                            <Ionicons name="mail-outline" size={14} color={colors.fg.muted} />
+                            <Text style={styles.detail}>{item.email}</Text>
                         </View>
-                        {item.email && (
-                            <View style={styles.infoRow}>
-                                <Ionicons name="mail-outline" size={16} color="#94a3b8" />
-                                <Text style={styles.infoText}>{item.email}</Text>
-                            </View>
-                        )}
-                    </View>
-                )}
-                ListEmptyComponent={
-                    <View style={styles.emptyContainer}>
-                        <Ionicons name="bicycle-outline" size={48} color="#475569" />
-                        <Text style={styles.emptyText}>Henüz kurye yok</Text>
-                    </View>
-                }
-            />
-        </View>
+                    )}
+                </View>
+            )}
+            ListEmptyComponent={
+                <View style={styles.empty}><Text style={styles.emptyText}>Henüz kurye yok</Text></View>
+            }
+        />
     )
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: "#0f172a" },
-    loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#0f172a" },
-    card: { backgroundColor: "#1e293b", borderRadius: 16, padding: 16, marginBottom: 12 },
-    cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 },
-    courierName: { fontSize: 18, fontWeight: "700", color: "#f8fafc" },
-    vehicleType: { fontSize: 13, color: "#94a3b8", marginTop: 2 },
-    badges: { flexDirection: "row", gap: 6 },
-    badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
-    badgeText: { fontSize: 12, fontWeight: "600", color: "#fff" },
-    infoRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 6 },
-    infoText: { fontSize: 14, color: "#cbd5e1" },
-    emptyContainer: { alignItems: "center", paddingTop: 60 },
-    emptyText: { fontSize: 16, color: "#475569", marginTop: 12 },
+    container: { flex: 1, backgroundColor: colors.bg.base },
+    center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: colors.bg.base },
+    card: {
+        backgroundColor: colors.bg.base,
+        borderRadius: radius.lg,
+        borderWidth: 1,
+        borderColor: colors.border.base,
+        padding: spacing.lg,
+    },
+    cardRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: spacing.md },
+    name: { ...typography.h3 },
+    meta: { ...typography.small, marginTop: 2 },
+    tags: { flexDirection: "row", gap: spacing.xs },
+    tag: { paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: radius.sm },
+    tagGreen: { backgroundColor: colors.tag.green.bg },
+    tagRed: { backgroundColor: colors.tag.red.bg },
+    tagBlue: { backgroundColor: colors.tag.blue.bg },
+    tagNeutral: { backgroundColor: colors.tag.neutral.bg },
+    tagText: { fontSize: 12, fontWeight: "500" },
+    detailRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: 4 },
+    detail: { ...typography.small },
+    empty: { alignItems: "center", paddingTop: 60 },
+    emptyText: { ...typography.body },
 })
