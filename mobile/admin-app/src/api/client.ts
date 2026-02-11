@@ -26,9 +26,7 @@ export const setAuthToken = (token: string) => {
 }
 
 // ── Auth ──
-// Medusa v2 admin auth: POST /auth/user/emailpass → token, then use token for admin API
 export const login = async (email: string, password: string) => {
-    // Step 1: Authenticate and get JWT token
     const { data } = await api.post("/auth/user/emailpass", { email, password })
     const token = data.token
     if (!token) throw new Error("No token received")
@@ -87,9 +85,18 @@ export const getListings = async () => {
     return data.listings
 }
 
+export const createListing = async (listingData: any) => {
+    const { data } = await api.post("/admin/listings", listingData)
+    return data.listing
+}
+
 export const updateListing = async (id: string, listingData: any) => {
     const { data } = await api.post(`/admin/listings/${id}`, listingData)
     return data.listing
+}
+
+export const deleteListing = async (id: string) => {
+    await api.delete(`/admin/listings/${id}`)
 }
 
 // ── VartoOrders ──
@@ -108,10 +115,43 @@ export const updateVartoOrder = async (id: string, orderData: any) => {
     return data.varto_order
 }
 
+export const deleteVartoOrder = async (id: string) => {
+    await api.delete(`/admin/varto-orders/${id}`)
+}
+
+// ── Order Items ──
+export const getOrderItems = async (orderId: string) => {
+    const { data } = await api.get(`/admin/varto-orders/${orderId}/items`)
+    return data.varto_order_items
+}
+
+export const createOrderItem = async (orderId: string, itemData: any) => {
+    const { data } = await api.post(`/admin/varto-orders/${orderId}/items`, itemData)
+    return data.varto_order_item
+}
+
+export const deleteOrderItem = async (orderId: string, itemId: string) => {
+    await api.delete(`/admin/varto-orders/${orderId}/items/${itemId}`)
+}
+
 // ── Appointments ──
 export const getAppointments = async () => {
     const { data } = await api.get("/admin/appointments")
     return data.appointments
+}
+
+export const createAppointment = async (appointmentData: any) => {
+    const { data } = await api.post("/admin/appointments", appointmentData)
+    return data.appointment
+}
+
+export const updateAppointment = async (id: string, appointmentData: any) => {
+    const { data } = await api.post(`/admin/appointments/${id}`, appointmentData)
+    return data.appointment
+}
+
+export const deleteAppointment = async (id: string) => {
+    await api.delete(`/admin/appointments/${id}`)
 }
 
 export default api
