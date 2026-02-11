@@ -12,6 +12,7 @@ import { setCustomerToken, getMe } from "./src/api/client"
 
 import PhoneLoginScreen from "./src/screens/PhoneLoginScreen"
 import OTPScreen from "./src/screens/OTPScreen"
+import RegisterScreen from "./src/screens/RegisterScreen"
 import HomeScreen from "./src/screens/HomeScreen"
 import VendorDetailScreen from "./src/screens/VendorDetailScreen"
 import CartScreen from "./src/screens/CartScreen"
@@ -84,8 +85,9 @@ export default function App() {
     const scheme = useColorScheme()
     const c = getColors()
 
-    const [authState, setAuthState] = useState<"loading" | "phone" | "otp" | "authenticated">("loading")
+    const [authState, setAuthState] = useState<"loading" | "phone" | "otp" | "register" | "authenticated">("loading")
     const [phone, setPhone] = useState("")
+    const [isNewUser, setIsNewUser] = useState(false)
     const [customer, setCustomer] = useState<any>(null)
 
     // Restore session on startup
@@ -117,8 +119,9 @@ export default function App() {
         })()
     }, [])
 
-    const handleOtpSent = (phoneNum: string) => {
+    const handleOtpSent = (phoneNum: string, isNew: boolean) => {
         setPhone(phoneNum)
+        setIsNewUser(isNew)
         setAuthState("otp")
     }
 
@@ -126,6 +129,17 @@ export default function App() {
         setCustomer(cust)
         await AsyncStorage.setItem(STORAGE_KEYS.token, token)
         await AsyncStorage.setItem(STORAGE_KEYS.customer, JSON.stringify(cust))
+        // New users go to registration form, existing users go to main app
+        if (isNewUser && !cust.name) {
+            setAuthState("register")
+        } else {
+            setAuthState("authenticated")
+        }
+    }
+
+    const handleRegistrationComplete = async (updatedCustomer: any) => {
+        setCustomer(updatedCustomer)
+        await AsyncStorage.setItem(STORAGE_KEYS.customer, JSON.stringify(updatedCustomer))
         setAuthState("authenticated")
     }
 
@@ -179,6 +193,15 @@ export default function App() {
         return (
             <SafeAreaProvider>
                 <OTPScreen phone={phone} onVerified={handleVerified} onBack={() => setAuthState("phone")} />
+                <StatusBar style={scheme === "dark" ? "light" : "dark"} />
+            </SafeAreaProvider>
+        )
+    }
+
+    if (authState === "register") {
+        return (
+            <SafeAreaProvider>
+                <RegisterScreen customer={customer} onComplete={handleRegistrationComplete} />
                 <StatusBar style={scheme === "dark" ? "light" : "dark"} />
             </SafeAreaProvider>
         )

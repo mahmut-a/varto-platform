@@ -15,7 +15,7 @@ import { Ionicons } from "@expo/vector-icons"
 import { getColors, getTypography, spacing, radius } from "../theme/tokens"
 import { sendOtp, getApiBaseUrl } from "../api/client"
 
-export default function PhoneLoginScreen({ onOtpSent }: { onOtpSent: (phone: string) => void }) {
+export default function PhoneLoginScreen({ onOtpSent }: { onOtpSent: (phone: string, isNew: boolean) => void }) {
     const c = getColors()
     const t = getTypography()
 
@@ -34,8 +34,8 @@ export default function PhoneLoginScreen({ onOtpSent }: { onOtpSent: (phone: str
         }
         setLoading(true)
         try {
-            await sendOtp(phone)
-            onOtpSent(phone)
+            const result = await sendOtp(phone)
+            onOtpSent(phone, result.is_new)
         } catch (e: any) {
             Alert.alert("Hata", e?.response?.data?.message || "Bağlantı hatası")
         } finally {

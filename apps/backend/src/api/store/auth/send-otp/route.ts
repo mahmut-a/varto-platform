@@ -10,12 +10,14 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
         return res.status(400).json({ message: "Telefon numarası zorunludur" })
     }
 
-    // Find or create customer by phone
+    // Check if customer exists
     let customers = await customerService.listCustomers({ phone })
-    if (!customers || customers.length === 0) {
+    const is_new = !customers || customers.length === 0
+
+    if (is_new) {
         await customerService.createCustomers({ phone })
     }
 
     // In seed mode, OTP is always 123456 — no actual SMS sent
-    res.json({ success: true, message: "OTP gönderildi" })
+    res.json({ success: true, is_new, message: is_new ? "Hesabınız oluşturuldu, OTP gönderildi" : "OTP gönderildi" })
 }
