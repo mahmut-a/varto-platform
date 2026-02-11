@@ -7,3 +7,9 @@ export const GET = async (req: MedusaRequest, res: MedusaResponse) => {
     const appointments = await appointmentService.listAppointments()
     res.json({ appointments })
 }
+
+export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
+    const appointmentService: AppointmentModuleService = req.scope.resolve(APPOINTMENT_MODULE)
+    const appointment = await appointmentService.createAppointments(req.body as any)
+    res.status(201).json({ appointment })
+}

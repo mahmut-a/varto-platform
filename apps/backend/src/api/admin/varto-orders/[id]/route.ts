@@ -16,3 +16,9 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
     })
     res.json({ varto_order })
 }
+
+export const DELETE = async (req: MedusaRequest, res: MedusaResponse) => {
+    const orderExtService: OrderExtensionModuleService = req.scope.resolve(ORDER_EXTENSION_MODULE)
+    await orderExtService.deleteVartoOrders(req.params.id)
+    res.status(200).json({ id: req.params.id, deleted: true })
+}
