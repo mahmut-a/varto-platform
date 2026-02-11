@@ -4,7 +4,11 @@ import OrderExtensionModuleService from "../../../modules/order-extension/servic
 
 export const GET = async (req: MedusaRequest, res: MedusaResponse) => {
     const orderExtService: OrderExtensionModuleService = req.scope.resolve(ORDER_EXTENSION_MODULE)
-    const varto_orders = await orderExtService.listVartoOrders()
+    const filters: any = {}
+    if (req.query.vendor_id) {
+        filters.vendor_id = req.query.vendor_id
+    }
+    const varto_orders = await orderExtService.listVartoOrders(filters)
     res.json({ varto_orders })
 }
 
