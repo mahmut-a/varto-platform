@@ -10,8 +10,9 @@ import {
     KeyboardAvoidingView,
     Platform,
 } from "react-native"
+import { Ionicons } from "@expo/vector-icons"
 import { colors, spacing, radius, typography } from "../theme/tokens"
-import { login } from "../api/client"
+import { login, getApiBaseUrl } from "../api/client"
 
 interface LoginScreenProps {
     onLogin: () => void
@@ -21,6 +22,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
     const [email, setEmail] = useState("vartoadmin@varto.com")
     const [password, setPassword] = useState("")
     const [loading, setLoading] = useState(false)
+    const [showPassword, setShowPassword] = useState(false)
 
     const handleLogin = async () => {
         if (!email || !password) {
@@ -31,8 +33,9 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
         try {
             await login(email, password)
             onLogin()
-        } catch {
-            Alert.alert("Giriş Başarısız", "E-posta veya şifre hatalı.")
+        } catch (e: any) {
+            const msg = e?.response?.data?.message || e?.message || "Bağlantı hatası"
+            Alert.alert("Giriş Başarısız", `${msg}\n\nSunucu: ${getApiBaseUrl()}`)
         } finally {
             setLoading(false)
         }
@@ -47,6 +50,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
                 <View style={styles.header}>
                     <Text style={styles.title}>Varto</Text>
                     <Text style={styles.subtitle}>Admin paneline giriş yapın</Text>
+                    <Text style={styles.serverInfo}>{getApiBaseUrl()}</Text>
                 </View>
 
                 <View style={styles.form}>
@@ -59,17 +63,33 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
                         placeholderTextColor={colors.fg.muted}
                         keyboardType="email-address"
                         autoCapitalize="none"
+                        autoCorrect={false}
                     />
 
                     <Text style={[styles.label, { marginTop: spacing.lg }]}>Şifre</Text>
-                    <TextInput
-                        style={styles.input}
-                        value={password}
-                        onChangeText={setPassword}
-                        placeholder="••••••••"
-                        placeholderTextColor={colors.fg.muted}
-                        secureTextEntry
-                    />
+                    <View style={styles.passwordContainer}>
+                        <TextInput
+                            style={styles.passwordInput}
+                            value={password}
+                            onChangeText={setPassword}
+                            placeholder="••••••••"
+                            placeholderTextColor={colors.fg.muted}
+                            secureTextEntry={!showPassword}
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                        />
+                        <TouchableOpacity
+                            style={styles.eyeButton}
+                            onPress={() => setShowPassword(!showPassword)}
+                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        >
+                            <Ionicons
+                                name={showPassword ? "eye-off-outline" : "eye-outline"}
+                                size={20}
+                                color={colors.fg.muted}
+                            />
+                        </TouchableOpacity>
+                    </View>
 
                     <TouchableOpacity
                         style={[styles.button, loading && styles.buttonDisabled]}
@@ -95,6 +115,7 @@ const styles = StyleSheet.create({
     header: { marginBottom: spacing.xxxl },
     title: { fontSize: 24, fontWeight: "600", color: colors.fg.base, letterSpacing: -0.5 },
     subtitle: { ...typography.body, marginTop: spacing.xs },
+    serverInfo: { ...typography.small, color: colors.fg.muted, marginTop: spacing.xs, fontFamily: "monospace", fontSize: 11 },
     form: {},
     label: { ...typography.label, marginBottom: spacing.sm },
     input: {
@@ -106,6 +127,25 @@ const styles = StyleSheet.create({
         paddingVertical: spacing.md,
         fontSize: 14,
         color: colors.fg.base,
+    },
+    passwordContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: colors.bg.field,
+        borderRadius: radius.md,
+        borderWidth: 1,
+        borderColor: colors.border.base,
+    },
+    passwordInput: {
+        flex: 1,
+        paddingHorizontal: spacing.lg,
+        paddingVertical: spacing.md,
+        fontSize: 14,
+        color: colors.fg.base,
+    },
+    eyeButton: {
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.md,
     },
     button: {
         backgroundColor: colors.interactive,

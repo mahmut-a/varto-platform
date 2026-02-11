@@ -1,11 +1,16 @@
 import axios from "axios"
-import { Platform } from "react-native"
+import Constants from "expo-constants"
 
-// Fiziksel cihazda bilgisayarın LAN IP adresini kullanın
-// Android emülatörde: 10.0.2.2
+// Expo Dev Server'ın IP adresini otomatik al
+// Expo Go uygulamasında çalışırken debuggerHost üzerinden bulunur
 const getBaseUrl = () => {
-    // Fiziksel cihaz için LAN IP — Expo Go terminalde gösterilen IP
-    return "http://10.103.39.75:9000"
+    const debuggerHost = Constants.expoConfig?.hostUri || Constants.manifest2?.extra?.expoGo?.debuggerHost
+    if (debuggerHost) {
+        const host = debuggerHost.split(":")[0]
+        return `http://${host}:9000`
+    }
+    // Fallback
+    return "http://localhost:9000"
 }
 
 const BASE_URL = getBaseUrl()
@@ -24,6 +29,8 @@ export const setAuthToken = (token: string) => {
     authToken = token
     api.defaults.headers.common["Authorization"] = `Bearer ${token}`
 }
+
+export const getApiBaseUrl = () => BASE_URL
 
 // ── Auth ──
 export const login = async (email: string, password: string) => {
