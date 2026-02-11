@@ -21,7 +21,8 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.zarifevren.adminapp"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -29,6 +30,11 @@
     "plugins": [
       "expo-asset",
       "expo-font"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "434aed6e-61ac-4d4a-a4db-acf9d3e8ca21"
+      }
+    }
   }
 }
