@@ -10,7 +10,10 @@ export const GET = async (req: MedusaRequest, res: MedusaResponse) => {
 
 export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
     const listingService: ListingModuleService = req.scope.resolve(LISTING_MODULE)
-    const listing = await listingService.updateListings(req.params.id, req.body as any)
+    const listing = await listingService.updateListings({
+        id: req.params.id,
+        ...(req.body as any),
+    })
     res.json({ listing })
 }
 

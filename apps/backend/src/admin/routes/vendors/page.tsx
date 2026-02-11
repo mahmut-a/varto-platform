@@ -1,6 +1,6 @@
 import { defineRouteConfig } from "@medusajs/admin-sdk"
 import { Buildings } from "@medusajs/icons"
-import { Container, Heading, Table, Badge, Text, Button, FocusModal, Label, Input, Select } from "@medusajs/ui"
+import { Container, Heading, Table, Badge, Text, Button, FocusModal, Label, Input, Select, Switch } from "@medusajs/ui"
 import { useEffect, useState } from "react"
 
 const CATEGORY_OPTIONS = [
@@ -16,7 +16,7 @@ const CATEGORY_MAP = Object.fromEntries(CATEGORY_OPTIONS.map((o) => [o.value, o.
 const slugify = (text: string) =>
     text.toLowerCase().replace(/ğ/g, "g").replace(/ü/g, "u").replace(/ş/g, "s").replace(/ı/g, "i").replace(/ö/g, "o").replace(/ç/g, "c").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")
 
-const emptyVendor = { name: "", slug: "", phone: "", address: "", category: "restaurant", iban: "", is_active: true }
+const emptyVendor = { name: "", slug: "", phone: "", email: "", address: "", category: "restaurant", iban: "", is_active: true, description: "", opening_hours: "", image_url: "" }
 
 const VendorsPage = () => {
     const [vendors, setVendors] = useState<any[]>([])
@@ -40,26 +40,37 @@ const VendorsPage = () => {
     const openEdit = (v: any) => {
         setEditing(v)
         setForm({
-            name: v.name, slug: v.slug || "", phone: v.phone || "", address: v.address || "",
-            category: v.category || "restaurant", iban: v.iban || "", is_active: v.is_active ?? true,
+            name: v.name, slug: v.slug || "", phone: v.phone || "", email: v.email || "",
+            address: v.address || "", category: v.category || "restaurant", iban: v.iban || "",
+            is_active: v.is_active ?? true, description: v.description || "",
+            opening_hours: v.opening_hours ? JSON.stringify(v.opening_hours) : "",
+            image_url: v.image_url || "",
         })
         setModalOpen(true)
     }
 
     const setName = (name: string) => {
-        if (editing) {
-            setForm({ ...form, name })
-        } else {
-            setForm({ ...form, name, slug: slugify(name) })
-        }
+        if (editing) setForm({ ...form, name })
+        else setForm({ ...form, name, slug: slugify(name) })
     }
 
     const handleSave = async () => {
         const url = editing ? `/admin/vendors/${editing.id}` : "/admin/vendors"
-        const res = await fetch(url, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) })
+        const payload: any = { ...form, slug: form.slug || slugify(form.name) }
+        if (payload.opening_hours) { try { payload.opening_hours = JSON.parse(payload.opening_hours) } catch { delete payload.opening_hours } }
+        else { payload.opening_hours = null }
+        if (!payload.email) payload.email = null
+        if (!payload.description) payload.description = null
+        if (!payload.image_url) payload.image_url = null
+        const res = await fetch(url, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
         if (!res.ok) { const err = await res.json().catch(() => ({})); alert(err.message || "Hata oluştu"); return }
         setModalOpen(false)
         fetchVendors()
+    }
+
+    const toggleActive = async (id: string, value: boolean) => {
+        const res = await fetch(`/admin/vendors/${id}`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ is_active: value }) })
+        if (res.ok) setVendors((prev) => prev.map((v) => v.id === id ? { ...v, is_active: value } : v))
     }
 
     const handleDelete = async (id: string) => {
@@ -84,8 +95,7 @@ const VendorsPage = () => {
                                     <Table.HeaderCell>Kategori</Table.HeaderCell>
                                     <Table.HeaderCell>Telefon</Table.HeaderCell>
                                     <Table.HeaderCell>Adres</Table.HeaderCell>
-                                    <Table.HeaderCell>IBAN</Table.HeaderCell>
-                                    <Table.HeaderCell>Durum</Table.HeaderCell>
+                                    <Table.HeaderCell>Aktif</Table.HeaderCell>
                                     <Table.HeaderCell>İşlemler</Table.HeaderCell>
                                 </Table.Row>
                             </Table.Header>
@@ -96,9 +106,8 @@ const VendorsPage = () => {
                                         <Table.Cell><Text size="small">{CATEGORY_MAP[v.category] || v.category}</Text></Table.Cell>
                                         <Table.Cell><Text size="small" className="text-ui-fg-muted">{v.phone}</Text></Table.Cell>
                                         <Table.Cell><Text size="small" className="text-ui-fg-muted">{v.address}</Text></Table.Cell>
-                                        <Table.Cell><Text size="small" className="text-ui-fg-muted font-mono">{v.iban ? `...${v.iban.slice(-4)}` : "—"}</Text></Table.Cell>
                                         <Table.Cell>
-                                            <Badge color={v.is_active ? "green" : "red"} size="2xsmall">{v.is_active ? "Aktif" : "Pasif"}</Badge>
+                                            <Switch checked={v.is_active} onCheckedChange={(val) => toggleActive(v.id, val)} />
                                         </Table.Cell>
                                         <Table.Cell>
                                             <div className="flex gap-2">
@@ -121,6 +130,7 @@ const VendorsPage = () => {
                     <FocusModal.Body className="flex flex-col items-center py-16">
                         <div className="flex w-full max-w-lg flex-col gap-y-4">
                             <Heading>{editing ? "İşletme Düzenle" : "Yeni İşletme"}</Heading>
+
                             <div className="flex flex-col gap-y-1">
                                 <Label>İsim *</Label>
                                 <Input value={form.name} onChange={(e) => setName(e.target.value)} placeholder="İşletme adı" />
@@ -129,9 +139,15 @@ const VendorsPage = () => {
                                 <Label>Slug</Label>
                                 <Input value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} placeholder="isletme-adi" />
                             </div>
-                            <div className="flex flex-col gap-y-1">
-                                <Label>Telefon *</Label>
-                                <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="0555 123 4567" />
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="flex flex-col gap-y-1">
+                                    <Label>Telefon *</Label>
+                                    <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="05XX" />
+                                </div>
+                                <div className="flex flex-col gap-y-1">
+                                    <Label>E-posta</Label>
+                                    <Input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="info@isletme.com" />
+                                </div>
                             </div>
                             <div className="flex flex-col gap-y-1">
                                 <Label>Adres *</Label>
@@ -142,6 +158,10 @@ const VendorsPage = () => {
                                 <Input value={form.iban} onChange={(e) => setForm({ ...form, iban: e.target.value })} placeholder="TR00 0000 0000 0000 0000 0000 00" />
                             </div>
                             <div className="flex flex-col gap-y-1">
+                                <Label>Açıklama</Label>
+                                <Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="İşletme hakkında bilgi" />
+                            </div>
+                            <div className="flex flex-col gap-y-1">
                                 <Label>Kategori</Label>
                                 <Select value={form.category} onValueChange={(val) => setForm({ ...form, category: val })}>
                                     <Select.Trigger><Select.Value placeholder="Kategori seçin" /></Select.Trigger>
@@ -149,6 +169,18 @@ const VendorsPage = () => {
                                         {CATEGORY_OPTIONS.map((o) => <Select.Item key={o.value} value={o.value}>{o.label}</Select.Item>)}
                                     </Select.Content>
                                 </Select>
+                            </div>
+                            <div className="flex flex-col gap-y-1">
+                                <Label>Resim URL</Label>
+                                <Input value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} placeholder="https://..." />
+                            </div>
+                            <div className="flex flex-col gap-y-1">
+                                <Label>Çalışma Saatleri (JSON)</Label>
+                                <Input value={form.opening_hours} onChange={(e) => setForm({ ...form, opening_hours: e.target.value })} placeholder='{"mon":"09:00-22:00"}' />
+                            </div>
+                            <div className="flex items-center justify-between rounded-lg border border-ui-border-base p-3">
+                                <Label>Aktif</Label>
+                                <Switch checked={form.is_active} onCheckedChange={(v) => setForm({ ...form, is_active: v })} />
                             </div>
                         </div>
                     </FocusModal.Body>

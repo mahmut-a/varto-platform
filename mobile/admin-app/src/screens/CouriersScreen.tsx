@@ -13,6 +13,7 @@ import {
     ScrollView,
     KeyboardAvoidingView,
     Platform,
+    Switch,
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import { colors, spacing, radius, typography } from "../theme/tokens"
@@ -26,7 +27,7 @@ const VEHICLES = [
 ]
 const VEHICLE_MAP = Object.fromEntries(VEHICLES.map((v) => [v.value, v.label]))
 
-const emptyForm = { name: "", phone: "", email: "", vehicle_type: "motorcycle" }
+const emptyForm = { name: "", phone: "", email: "", vehicle_type: "motorcycle", is_active: true, is_available: true }
 
 export default function CouriersScreen() {
     const [couriers, setCouriers] = useState<any[]>([])
@@ -39,13 +40,8 @@ export default function CouriersScreen() {
     const [vehiclePickerOpen, setVehiclePickerOpen] = useState(false)
 
     const fetchCouriers = async () => {
-        try {
-            const data = await getCouriers()
-            setCouriers(data || [])
-        } catch { } finally {
-            setLoading(false)
-            setRefreshing(false)
-        }
+        try { const data = await getCouriers(); setCouriers(data || []) }
+        catch { } finally { setLoading(false); setRefreshing(false) }
     }
 
     useEffect(() => { fetchCouriers() }, [])
@@ -53,7 +49,7 @@ export default function CouriersScreen() {
     const openCreate = () => { setEditing(null); setForm({ ...emptyForm }); setModalVisible(true) }
     const openEdit = (c: any) => {
         setEditing(c)
-        setForm({ name: c.name, phone: c.phone || "", email: c.email || "", vehicle_type: c.vehicle_type || "motorcycle" })
+        setForm({ name: c.name, phone: c.phone || "", email: c.email || "", vehicle_type: c.vehicle_type || "motorcycle", is_active: c.is_active ?? true, is_available: c.is_available ?? true })
         setModalVisible(true)
     }
 
@@ -68,6 +64,13 @@ export default function CouriersScreen() {
         } catch (e: any) {
             Alert.alert("Hata", e?.response?.data?.message || "Kayıt başarısız.")
         } finally { setSaving(false) }
+    }
+
+    const toggleField = async (id: string, field: string, value: boolean) => {
+        try {
+            await updateCourier(id, { [field]: value })
+            setCouriers((prev) => prev.map((c) => c.id === id ? { ...c, [field]: value } : c))
+        } catch { Alert.alert("Hata", "Güncelleme başarısız.") }
     }
 
     const handleDelete = (id: string, name: string) => {
@@ -124,6 +127,18 @@ export default function CouriersScreen() {
                             </View>
                         )}
 
+                        {/* Inline Toggle Switches */}
+                        <View style={styles.toggleSection}>
+                            <View style={styles.toggleRow}>
+                                <Text style={styles.toggleLabel}>Aktif</Text>
+                                <Switch value={item.is_active} onValueChange={(v) => toggleField(item.id, "is_active", v)} trackColor={{ false: colors.border.base, true: colors.interactive }} thumbColor="#fff" />
+                            </View>
+                            <View style={styles.toggleRow}>
+                                <Text style={styles.toggleLabel}>Müsait</Text>
+                                <Switch value={item.is_available} onValueChange={(v) => toggleField(item.id, "is_available", v)} trackColor={{ false: colors.border.base, true: colors.interactive }} thumbColor="#fff" />
+                            </View>
+                        </View>
+
                         <View style={styles.actions}>
                             <TouchableOpacity style={styles.editBtn} onPress={() => openEdit(item)}>
                                 <Ionicons name="create-outline" size={14} color={colors.interactive} />
@@ -146,13 +161,9 @@ export default function CouriersScreen() {
             <Modal visible={modalVisible} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setModalVisible(false)}>
                 <KeyboardAvoidingView style={styles.modalContainer} behavior={Platform.OS === "ios" ? "padding" : undefined}>
                     <View style={styles.modalHeader}>
-                        <TouchableOpacity onPress={() => setModalVisible(false)}>
-                            <Text style={styles.modalCancel}>İptal</Text>
-                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => setModalVisible(false)}><Text style={styles.modalCancel}>İptal</Text></TouchableOpacity>
                         <Text style={styles.modalTitle}>{editing ? "Kurye Düzenle" : "Yeni Kurye"}</Text>
-                        <TouchableOpacity onPress={handleSave} disabled={saving}>
-                            <Text style={[styles.modalSave, saving && { opacity: 0.5 }]}>{saving ? "..." : "Kaydet"}</Text>
-                        </TouchableOpacity>
+                        <TouchableOpacity onPress={handleSave} disabled={saving}><Text style={[styles.modalSave, saving && { opacity: 0.5 }]}>{saving ? "..." : "Kaydet"}</Text></TouchableOpacity>
                     </View>
                     <ScrollView contentContainerStyle={styles.formContent}>
                         <Text style={styles.inputLabel}>İsim *</Text>
@@ -168,6 +179,15 @@ export default function CouriersScreen() {
                         <TouchableOpacity style={styles.input} onPress={() => setVehiclePickerOpen(true)}>
                             <Text style={{ color: colors.fg.base }}>{VEHICLE_MAP[form.vehicle_type]}</Text>
                         </TouchableOpacity>
+
+                        <View style={styles.formToggleRow}>
+                            <Text style={styles.toggleLabel}>Aktif</Text>
+                            <Switch value={form.is_active} onValueChange={(v) => setForm({ ...form, is_active: v })} trackColor={{ false: colors.border.base, true: colors.interactive }} thumbColor="#fff" />
+                        </View>
+                        <View style={styles.formToggleRow}>
+                            <Text style={styles.toggleLabel}>Müsait</Text>
+                            <Switch value={form.is_available} onValueChange={(v) => setForm({ ...form, is_available: v })} trackColor={{ false: colors.border.base, true: colors.interactive }} thumbColor="#fff" />
+                        </View>
                     </ScrollView>
                 </KeyboardAvoidingView>
 
@@ -204,6 +224,9 @@ const styles = StyleSheet.create({
     tagText: { fontSize: 12, fontWeight: "500" },
     detailRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: 4 },
     detail: { ...typography.small },
+    toggleSection: { marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border.base, gap: spacing.sm },
+    toggleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+    toggleLabel: { ...typography.label },
     actions: { flexDirection: "row", justifyContent: "flex-end", gap: spacing.lg, marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border.base },
     editBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 4 },
     editText: { fontSize: 13, color: colors.interactive, fontWeight: "500" },
@@ -220,6 +243,7 @@ const styles = StyleSheet.create({
     formContent: { padding: spacing.xl, gap: spacing.sm },
     inputLabel: { ...typography.label, marginTop: spacing.sm },
     input: { borderWidth: 1, borderColor: colors.border.base, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.md, fontSize: 14, color: colors.fg.base, backgroundColor: colors.bg.field },
+    formToggleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderWidth: 1, borderColor: colors.border.base, borderRadius: radius.md, padding: spacing.md, marginTop: spacing.sm },
     pickerOverlay: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "rgba(0,0,0,0.4)" },
     pickerContent: { backgroundColor: colors.bg.base, borderRadius: radius.lg, padding: spacing.md, width: 280 },
     pickerItem: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: spacing.md, paddingHorizontal: spacing.md },

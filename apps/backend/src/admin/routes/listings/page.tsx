@@ -3,12 +3,13 @@ import { DocumentText } from "@medusajs/icons"
 import { Container, Heading, Table, Badge, Text, Button, FocusModal, Label, Input, Select, Textarea } from "@medusajs/ui"
 import { useEffect, useState } from "react"
 
-const STATUS_MAP: Record<string, { label: string; color: "green" | "orange" | "red" | "grey" }> = {
-    pending: { label: "Bekliyor", color: "orange" },
-    approved: { label: "Onaylı", color: "green" },
-    rejected: { label: "Reddedildi", color: "red" },
-    expired: { label: "Süresi Doldu", color: "grey" },
-}
+const STATUS_OPTIONS = [
+    { value: "pending", label: "Bekliyor", color: "orange" as const },
+    { value: "approved", label: "Onaylı", color: "green" as const },
+    { value: "rejected", label: "Reddedildi", color: "red" as const },
+    { value: "expired", label: "Süresi Doldu", color: "grey" as const },
+]
+const STATUS_MAP = Object.fromEntries(STATUS_OPTIONS.map((o) => [o.value, { label: o.label, color: o.color }]))
 
 const CATEGORY_OPTIONS = [
     { value: "rental", label: "Kiralık" },
@@ -19,7 +20,7 @@ const CATEGORY_OPTIONS = [
 ]
 const CATEGORY_MAP = Object.fromEntries(CATEGORY_OPTIONS.map((o) => [o.value, o.label]))
 
-const emptyListing = { title: "", description: "", category: "other", price: 0, location: "", contact_name: "", contact_phone: "", status: "pending" }
+const emptyListing = { title: "", description: "", category: "other", price: 0, location: "", contact_name: "", contact_phone: "", status: "pending", rejection_reason: "", customer_id: "", vendor_id: "" }
 
 const ListingsPage = () => {
     const [listings, setListings] = useState<any[]>([])
@@ -46,21 +47,28 @@ const ListingsPage = () => {
             title: l.title, description: l.description || "", category: l.category || "other",
             price: l.price || 0, location: l.location || "", contact_name: l.contact_name || "",
             contact_phone: l.contact_phone || "", status: l.status || "pending",
+            rejection_reason: l.rejection_reason || "", customer_id: l.customer_id || "",
+            vendor_id: l.vendor_id || "",
         })
         setModalOpen(true)
     }
 
     const handleSave = async () => {
         const url = editing ? `/admin/listings/${editing.id}` : "/admin/listings"
-        const res = await fetch(url, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) })
+        const payload: any = { ...form }
+        if (!payload.rejection_reason) payload.rejection_reason = null
+        if (!payload.customer_id) payload.customer_id = null
+        if (!payload.vendor_id) payload.vendor_id = null
+        const res = await fetch(url, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
         if (!res.ok) { const err = await res.json().catch(() => ({})); alert(err.message || "Hata oluştu"); return }
         setModalOpen(false)
         fetchListings()
     }
 
     const updateStatus = async (id: string, status: string) => {
-        await fetch(`/admin/listings/${id}`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) })
-        setListings((prev) => prev.map((l) => l.id === id ? { ...l, status } : l))
+        const res = await fetch(`/admin/listings/${id}`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) })
+        if (res.ok) setListings((prev) => prev.map((l) => l.id === id ? { ...l, status } : l))
+        else alert("Durum güncellenemedi!")
     }
 
     const handleDelete = async (id: string) => {
@@ -99,16 +107,12 @@ const ListingsPage = () => {
                                             <Table.Cell><Text size="small">{CATEGORY_MAP[l.category] || l.category}</Text></Table.Cell>
                                             <Table.Cell><Text size="small">{l.price != null ? `₺${Number(l.price).toLocaleString("tr-TR")}` : "—"}</Text></Table.Cell>
                                             <Table.Cell><Text size="small" className="text-ui-fg-muted">{l.location}</Text></Table.Cell>
-                                            <Table.Cell><Text size="small" className="text-ui-fg-muted">{l.contact_name} · {l.contact_phone}</Text></Table.Cell>
+                                            <Table.Cell><Text size="small" className="text-ui-fg-muted">{l.contact_name}</Text></Table.Cell>
                                             <Table.Cell><Badge color={status.color} size="2xsmall">{status.label}</Badge></Table.Cell>
                                             <Table.Cell>
                                                 <div className="flex gap-2">
-                                                    {l.status === "pending" && (
-                                                        <>
-                                                            <Button size="small" variant="primary" onClick={() => updateStatus(l.id, "approved")}>Onayla</Button>
-                                                            <Button size="small" variant="secondary" onClick={() => updateStatus(l.id, "rejected")}>Reddet</Button>
-                                                        </>
-                                                    )}
+                                                    <Button size="small" variant="primary" onClick={() => updateStatus(l.id, "approved")}>Onayla</Button>
+                                                    <Button size="small" variant="secondary" onClick={() => updateStatus(l.id, "rejected")}>Reddet</Button>
                                                     <Button size="small" variant="secondary" onClick={() => openEdit(l)}>Düzenle</Button>
                                                     <Button size="small" variant="danger" onClick={() => handleDelete(l.id)}>Sil</Button>
                                                 </div>
@@ -137,14 +141,25 @@ const ListingsPage = () => {
                                 <Label>Açıklama *</Label>
                                 <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="İlan açıklaması" />
                             </div>
-                            <div className="flex flex-col gap-y-1">
-                                <Label>Kategori *</Label>
-                                <Select value={form.category} onValueChange={(val) => setForm({ ...form, category: val })}>
-                                    <Select.Trigger><Select.Value /></Select.Trigger>
-                                    <Select.Content>
-                                        {CATEGORY_OPTIONS.map((o) => <Select.Item key={o.value} value={o.value}>{o.label}</Select.Item>)}
-                                    </Select.Content>
-                                </Select>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="flex flex-col gap-y-1">
+                                    <Label>Kategori *</Label>
+                                    <Select value={form.category} onValueChange={(val) => setForm({ ...form, category: val })}>
+                                        <Select.Trigger><Select.Value /></Select.Trigger>
+                                        <Select.Content>
+                                            {CATEGORY_OPTIONS.map((o) => <Select.Item key={o.value} value={o.value}>{o.label}</Select.Item>)}
+                                        </Select.Content>
+                                    </Select>
+                                </div>
+                                <div className="flex flex-col gap-y-1">
+                                    <Label>Durum</Label>
+                                    <Select value={form.status} onValueChange={(val) => setForm({ ...form, status: val })}>
+                                        <Select.Trigger><Select.Value /></Select.Trigger>
+                                        <Select.Content>
+                                            {STATUS_OPTIONS.map((o) => <Select.Item key={o.value} value={o.value}>{o.label}</Select.Item>)}
+                                        </Select.Content>
+                                    </Select>
+                                </div>
                             </div>
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="flex flex-col gap-y-1">
@@ -163,7 +178,21 @@ const ListingsPage = () => {
                                 </div>
                                 <div className="flex flex-col gap-y-1">
                                     <Label>İletişim Telefon *</Label>
-                                    <Input value={form.contact_phone} onChange={(e) => setForm({ ...form, contact_phone: e.target.value })} placeholder="0555 123 4567" />
+                                    <Input value={form.contact_phone} onChange={(e) => setForm({ ...form, contact_phone: e.target.value })} placeholder="05XX" />
+                                </div>
+                            </div>
+                            <div className="flex flex-col gap-y-1">
+                                <Label>Red Nedeni</Label>
+                                <Input value={form.rejection_reason} onChange={(e) => setForm({ ...form, rejection_reason: e.target.value })} placeholder="Neden reddedildi" />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="flex flex-col gap-y-1">
+                                    <Label>Müşteri ID</Label>
+                                    <Input value={form.customer_id} onChange={(e) => setForm({ ...form, customer_id: e.target.value })} placeholder="ID" />
+                                </div>
+                                <div className="flex flex-col gap-y-1">
+                                    <Label>İşletme ID</Label>
+                                    <Input value={form.vendor_id} onChange={(e) => setForm({ ...form, vendor_id: e.target.value })} placeholder="ID" />
                                 </div>
                             </div>
                         </div>

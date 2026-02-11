@@ -1,6 +1,6 @@
 import { defineRouteConfig } from "@medusajs/admin-sdk"
 import { ArrowPath } from "@medusajs/icons"
-import { Container, Heading, Table, Badge, Text, Button, FocusModal, Label, Input, Select } from "@medusajs/ui"
+import { Container, Heading, Table, Badge, Text, Button, FocusModal, Label, Input, Select, Switch } from "@medusajs/ui"
 import { useEffect, useState } from "react"
 
 const VEHICLE_OPTIONS = [
@@ -46,6 +46,11 @@ const CouriersPage = () => {
         fetchCouriers()
     }
 
+    const toggleField = async (id: string, field: string, value: boolean) => {
+        const res = await fetch(`/admin/couriers/${id}`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ [field]: value }) })
+        if (res.ok) setCouriers((prev) => prev.map((c) => c.id === id ? { ...c, [field]: value } : c))
+    }
+
     const handleDelete = async (id: string) => {
         if (!confirm("Bu kuryeyi silmek istediğinizden emin misiniz?")) return
         await fetch(`/admin/couriers/${id}`, { method: "DELETE", credentials: "include" })
@@ -68,8 +73,8 @@ const CouriersPage = () => {
                                     <Table.HeaderCell>Telefon</Table.HeaderCell>
                                     <Table.HeaderCell>E-posta</Table.HeaderCell>
                                     <Table.HeaderCell>Araç</Table.HeaderCell>
-                                    <Table.HeaderCell>Durum</Table.HeaderCell>
-                                    <Table.HeaderCell>Müsaitlik</Table.HeaderCell>
+                                    <Table.HeaderCell>Aktif</Table.HeaderCell>
+                                    <Table.HeaderCell>Müsait</Table.HeaderCell>
                                     <Table.HeaderCell>İşlemler</Table.HeaderCell>
                                 </Table.Row>
                             </Table.Header>
@@ -80,8 +85,12 @@ const CouriersPage = () => {
                                         <Table.Cell><Text size="small" className="text-ui-fg-muted">{c.phone}</Text></Table.Cell>
                                         <Table.Cell><Text size="small" className="text-ui-fg-muted">{c.email || "—"}</Text></Table.Cell>
                                         <Table.Cell><Text size="small">{VEHICLE_MAP[c.vehicle_type] || c.vehicle_type}</Text></Table.Cell>
-                                        <Table.Cell><Badge color={c.is_active ? "green" : "red"} size="2xsmall">{c.is_active ? "Aktif" : "Pasif"}</Badge></Table.Cell>
-                                        <Table.Cell><Badge color={c.is_available ? "blue" : "grey"} size="2xsmall">{c.is_available ? "Müsait" : "Meşgul"}</Badge></Table.Cell>
+                                        <Table.Cell>
+                                            <Switch checked={c.is_active} onCheckedChange={(v) => toggleField(c.id, "is_active", v)} />
+                                        </Table.Cell>
+                                        <Table.Cell>
+                                            <Switch checked={c.is_available} onCheckedChange={(v) => toggleField(c.id, "is_available", v)} />
+                                        </Table.Cell>
                                         <Table.Cell>
                                             <div className="flex gap-2">
                                                 <Button size="small" variant="secondary" onClick={() => openEdit(c)}>Düzenle</Button>
@@ -123,6 +132,14 @@ const CouriersPage = () => {
                                         {VEHICLE_OPTIONS.map((o) => <Select.Item key={o.value} value={o.value}>{o.label}</Select.Item>)}
                                     </Select.Content>
                                 </Select>
+                            </div>
+                            <div className="flex items-center justify-between rounded-lg border border-ui-border-base p-3">
+                                <Label>Aktif</Label>
+                                <Switch checked={form.is_active} onCheckedChange={(v) => setForm({ ...form, is_active: v })} />
+                            </div>
+                            <div className="flex items-center justify-between rounded-lg border border-ui-border-base p-3">
+                                <Label>Müsait</Label>
+                                <Switch checked={form.is_available} onCheckedChange={(v) => setForm({ ...form, is_available: v })} />
                             </div>
                         </div>
                     </FocusModal.Body>

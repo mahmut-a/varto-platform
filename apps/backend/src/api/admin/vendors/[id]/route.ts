@@ -10,7 +10,10 @@ export const GET = async (req: MedusaRequest, res: MedusaResponse) => {
 
 export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
     const vendorService: VendorModuleService = req.scope.resolve(VENDOR_MODULE)
-    const vendor = await vendorService.updateVendors(req.params.id, req.body as any)
+    const vendor = await vendorService.updateVendors({
+        id: req.params.id,
+        ...(req.body as any),
+    })
     res.json({ vendor })
 }
 

@@ -10,7 +10,10 @@ export const GET = async (req: MedusaRequest, res: MedusaResponse) => {
 
 export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
     const courierService: CourierModuleService = req.scope.resolve(COURIER_MODULE)
-    const courier = await courierService.updateCouriers(req.params.id, req.body as any)
+    const courier = await courierService.updateCouriers({
+        id: req.params.id,
+        ...(req.body as any),
+    })
     res.json({ courier })
 }
 
