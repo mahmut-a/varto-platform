@@ -12,9 +12,14 @@ const getBaseUrl = () => {
 
 const BASE_URL = getBaseUrl()
 
+const PUBLISHABLE_API_KEY = "pk_a4f8a56d304ae736b3c551d0ba44c0b22424fb404e4ad251d52828dc3b9efed5"
+
 const api = axios.create({
     baseURL: BASE_URL,
-    headers: { "Content-Type": "application/json" },
+    headers: {
+        "Content-Type": "application/json",
+        "x-publishable-api-key": PUBLISHABLE_API_KEY,
+    },
 })
 
 export const getApiBaseUrl = () => BASE_URL
