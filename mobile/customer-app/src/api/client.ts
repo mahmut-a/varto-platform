@@ -74,6 +74,14 @@ export const getVendorBySlug = async (slug: string) => {
     return data.vendor
 }
 
+// ── Vendor Products (Menü) ──
+export const getVendorProducts = async (vendorId: string) => {
+    const { data } = await api.get("/store/vendor-products", {
+        params: { vendor_id: vendorId, is_available: "true" },
+    })
+    return data.vendor_products
+}
+
 // ── Listings ──
 export const getListings = async () => {
     const { data } = await api.get("/store/listings")

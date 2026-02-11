@@ -1,4 +1,4 @@
-import React from "react"
+import React, { useEffect, useState } from "react"
 import {
     View,
     Text,
@@ -6,9 +6,12 @@ import {
     ScrollView,
     TouchableOpacity,
     useColorScheme,
+    ActivityIndicator,
+    RefreshControl,
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import { getColors, getTypography, spacing, radius, shadow } from "../theme/tokens"
+import { getVendorProducts } from "../api/client"
 
 const CATEGORY_MAP: Record<string, { label: string; icon: string }> = {
     restaurant: { label: "Restoran", icon: "restaurant-outline" },
@@ -19,23 +22,39 @@ const CATEGORY_MAP: Record<string, { label: string; icon: string }> = {
     other: { label: "Diğer", icon: "ellipsis-horizontal-outline" },
 }
 
-// Placeholder menu items — in production these come from a product catalog
-const SAMPLE_PRODUCTS = [
-    { id: "1", name: "Klasik Menü", price: 120, desc: "Ana yemek + içecek + tatlı" },
-    { id: "2", name: "Özel Menü", price: 180, desc: "Seçkin ana yemek + salata + tatlı" },
-    { id: "3", name: "Ekonomik Menü", price: 85, desc: "Günün yemeği + içecek" },
-    { id: "4", name: "Ekstra İçecek", price: 25, desc: "Soğuk / sıcak içecek" },
-]
-
 export default function VendorDetailScreen({ route, navigation }: any) {
-    const scheme = useColorScheme()
     const c = getColors()
     const t = getTypography()
     const vendor = route.params?.vendor
 
+    const [products, setProducts] = useState<any[]>([])
+    const [loading, setLoading] = useState(true)
+    const [refreshing, setRefreshing] = useState(false)
+
     if (!vendor) return null
 
     const cat = CATEGORY_MAP[vendor.category] || CATEGORY_MAP.other
+
+    const loadProducts = async () => {
+        try {
+            const data = await getVendorProducts(vendor.id)
+            setProducts(data || [])
+        } catch (err) {
+            console.log("Ürün yükleme hatası:", err)
+        } finally {
+            setLoading(false)
+            setRefreshing(false)
+        }
+    }
+
+    useEffect(() => {
+        loadProducts()
+    }, [vendor.id])
+
+    const onRefresh = () => {
+        setRefreshing(true)
+        loadProducts()
+    }
 
     const addToCart = (product: any) => {
         navigation.navigate("CartTab", {
@@ -43,7 +62,7 @@ export default function VendorDetailScreen({ route, navigation }: any) {
             params: {
                 addItem: {
                     product_name: product.name,
-                    unit_price: product.price,
+                    unit_price: Number(product.price) || 0,
                     quantity: 1,
                     notes: "",
                 },
@@ -52,8 +71,20 @@ export default function VendorDetailScreen({ route, navigation }: any) {
         })
     }
 
+    // Ürünleri kategoriye göre grupla
+    const grouped = products.reduce((acc: any, p: any) => {
+        const cat = p.category || "Diğer"
+        if (!acc[cat]) acc[cat] = []
+        acc[cat].push(p)
+        return acc
+    }, {})
+
     return (
-        <ScrollView style={[styles.container, { backgroundColor: c.bg.base }]} contentContainerStyle={{ paddingBottom: spacing.xxxl }}>
+        <ScrollView
+            style={[styles.container, { backgroundColor: c.bg.base }]}
+            contentContainerStyle={{ paddingBottom: spacing.xxxl }}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.interactive} />}
+        >
             {/* Header */}
             <View style={[styles.header, { backgroundColor: c.bg.subtle, borderBottomColor: c.border.base }]}>
                 <View style={[styles.iconCircle, { backgroundColor: c.bg.field }]}>
@@ -86,22 +117,43 @@ export default function VendorDetailScreen({ route, navigation }: any) {
             {/* Menu */}
             <View style={styles.menuSection}>
                 <Text style={[t.h2, { marginBottom: spacing.lg }]}>Menü</Text>
-                {SAMPLE_PRODUCTS.map((p) => (
-                    <View key={p.id} style={[styles.menuCard, { backgroundColor: c.bg.component, borderColor: c.border.base }, shadow.sm]}>
-                        <View style={{ flex: 1 }}>
-                            <Text style={[t.h3]}>{p.name}</Text>
-                            <Text style={[t.small, { marginTop: 2 }]}>{p.desc}</Text>
-                            <Text style={[t.price, { marginTop: spacing.xs }]}>₺{p.price}</Text>
-                        </View>
-                        <TouchableOpacity
-                            style={[styles.addBtn, { backgroundColor: c.interactive }]}
-                            onPress={() => addToCart(p)}
-                            activeOpacity={0.7}
-                        >
-                            <Ionicons name="add" size={20} color={c.fg.on_color} />
-                        </TouchableOpacity>
+
+                {loading ? (
+                    <ActivityIndicator size="large" color={c.interactive} style={{ marginTop: spacing.xl }} />
+                ) : products.length === 0 ? (
+                    <View style={styles.emptyState}>
+                        <Ionicons name="fast-food-outline" size={48} color={c.fg.muted} />
+                        <Text style={[t.body, { color: c.fg.muted, marginTop: spacing.md, textAlign: "center" }]}>
+                            Bu işletmenin henüz menüsü eklenmemiş.
+                        </Text>
                     </View>
-                ))}
+                ) : (
+                    Object.entries(grouped).map(([category, items]: [string, any]) => (
+                        <View key={category} style={{ marginBottom: spacing.lg }}>
+                            <Text style={[t.h3, { marginBottom: spacing.sm, color: c.fg.muted, textTransform: "capitalize" }]}>
+                                {category}
+                            </Text>
+                            {items.map((p: any) => (
+                                <View key={p.id} style={[styles.menuCard, { backgroundColor: c.bg.component, borderColor: c.border.base }, shadow.sm]}>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={[t.h3]}>{p.name}</Text>
+                                        {p.description ? (
+                                            <Text style={[t.small, { marginTop: 2 }]}>{p.description}</Text>
+                                        ) : null}
+                                        <Text style={[t.price, { marginTop: spacing.xs }]}>₺{Number(p.price).toFixed(2)}</Text>
+                                    </View>
+                                    <TouchableOpacity
+                                        style={[styles.addBtn, { backgroundColor: c.interactive }]}
+                                        onPress={() => addToCart(p)}
+                                        activeOpacity={0.7}
+                                    >
+                                        <Ionicons name="add" size={20} color={c.fg.on_color} />
+                                    </TouchableOpacity>
+                                </View>
+                            ))}
+                        </View>
+                    ))
+                )}
             </View>
         </ScrollView>
     )
@@ -117,4 +169,5 @@ const styles = StyleSheet.create({
     menuSection: { paddingHorizontal: spacing.xl, paddingTop: spacing.xl },
     menuCard: { flexDirection: "row", alignItems: "center", padding: spacing.lg, borderRadius: radius.lg, borderWidth: 1, marginBottom: spacing.md },
     addBtn: { width: 36, height: 36, borderRadius: 18, justifyContent: "center", alignItems: "center" },
+    emptyState: { alignItems: "center", paddingVertical: spacing.xxxl },
 })

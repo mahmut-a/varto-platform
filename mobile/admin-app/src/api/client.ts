@@ -111,7 +111,26 @@ export const deleteListing = async (id: string) => {
     await api.delete(`/admin/listings/${id}`)
 }
 
-// ── VartoOrders ──
+// ── Vendor Products ──
+export const getVendorProducts = async (vendorId?: string) => {
+    const params = vendorId ? { vendor_id: vendorId } : {}
+    const { data } = await api.get("/admin/vendor-products", { params })
+    return data.vendor_products
+}
+
+export const createVendorProduct = async (productData: any) => {
+    const { data } = await api.post("/admin/vendor-products", productData)
+    return data.vendor_product
+}
+
+export const updateVendorProduct = async (id: string, productData: any) => {
+    const { data } = await api.post(`/admin/vendor-products/${id}`, productData)
+    return data.vendor_product
+}
+
+export const deleteVendorProduct = async (id: string) => {
+    await api.delete(`/admin/vendor-products/${id}`)
+}
 export const getVartoOrders = async () => {
     const { data } = await api.get("/admin/varto-orders")
     return data.varto_orders
