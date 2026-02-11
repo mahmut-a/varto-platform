@@ -1,9 +1,14 @@
 import axios from "axios"
 import Constants from "expo-constants"
 
+const VPS_URL = "http://173.212.246.83:9000"
+
 // Expo Dev Server'ın IP adresini otomatik al
 // Expo Go uygulamasında çalışırken debuggerHost üzerinden bulunur
 const getBaseUrl = () => {
+    // Production build → VPS backend
+    if (!__DEV__) return VPS_URL
+    // Development → local backend via Expo debuggerHost
     const debuggerHost = Constants.expoConfig?.hostUri || Constants.manifest2?.extra?.expoGo?.debuggerHost
     if (debuggerHost) {
         const host = debuggerHost.split(":")[0]

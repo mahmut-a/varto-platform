@@ -1,7 +1,12 @@
 import axios from "axios"
 import Constants from "expo-constants"
 
+const VPS_URL = "http://173.212.246.83:9000"
+
 const getBaseUrl = () => {
+    // Production build → VPS backend
+    if (!__DEV__) return VPS_URL
+    // Development → local backend via Expo debuggerHost
     const debuggerHost = Constants.expoConfig?.hostUri || Constants.manifest2?.extra?.expoGo?.debuggerHost
     if (debuggerHost) {
         const host = debuggerHost.split(":")[0]
@@ -38,23 +43,23 @@ export const getApiBaseUrl = () => BASE_URL
 
 // ── Auth ──
 export const sendOtp = async (phone: string) => {
-    const { data } = await api.post("/store/auth/send-otp", { phone })
+    const { data } = await api.post("/store/customer-auth/send-otp", { phone })
     return data
 }
 
 export const verifyOtp = async (phone: string, otp: string) => {
-    const { data } = await api.post("/store/auth/verify-otp", { phone, otp })
+    const { data } = await api.post("/store/customer-auth/verify-otp", { phone, otp })
     if (data.token) setCustomerToken(data.token)
     return data
 }
 
 export const getMe = async () => {
-    const { data } = await api.get("/store/auth/me")
+    const { data } = await api.get("/store/customer-auth/me")
     return data.customer
 }
 
 export const updateProfile = async (profileData: any) => {
-    const { data } = await api.post("/store/auth/me", profileData)
+    const { data } = await api.post("/store/customer-auth/me", profileData)
     return data.customer
 }
 
