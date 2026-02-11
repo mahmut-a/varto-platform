@@ -8,7 +8,7 @@ const LOCAL_URL = Platform.select({
     ios: "http://localhost:9000",
     default: "http://localhost:9000",
 })
-const VPS_URL = "http://173.212.246.83"
+const VPS_URL = "https://api.vartoyazilim.com"
 
 const BASE = __DEV__ ? LOCAL_URL : VPS_URL
 

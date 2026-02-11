@@ -1,7 +1,7 @@
 import axios from "axios"
 import Constants from "expo-constants"
 
-const VPS_URL = "http://173.212.246.83"
+const VPS_URL = "https://api.vartoyazilim.com"
 
 const getBaseUrl = () => {
     // Production build → VPS backend
