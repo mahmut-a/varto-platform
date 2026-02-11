@@ -4,10 +4,11 @@ import OrderExtensionModuleService from "../../../../../modules/order-extension/
 
 export const GET = async (req: MedusaRequest, res: MedusaResponse) => {
     const orderExtService: OrderExtensionModuleService = req.scope.resolve(ORDER_EXTENSION_MODULE)
-    const items = await orderExtService.listVartoOrderItems({
-        varto_order_id: req.params.id,
+    // Retrieve order with items using relations
+    const order = await orderExtService.retrieveVartoOrder(req.params.id, {
+        relations: ["items"],
     })
-    res.json({ items })
+    res.json({ items: order.items || [] })
 }
 
 export const POST = async (req: MedusaRequest, res: MedusaResponse) => {

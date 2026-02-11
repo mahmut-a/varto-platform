@@ -1,4 +1,5 @@
 import { model } from "@medusajs/framework/utils"
+import VartoOrderItem from "./varto-order-item"
 
 const VartoOrder = model.define("varto_order", {
     id: model.id().primaryKey(),
@@ -25,6 +26,9 @@ const VartoOrder = model.define("varto_order", {
     iban_info: model.text().nullable(),
     verbal_confirmation: model.boolean().default(false),
     metadata: model.json().nullable(),
+    items: model.hasMany(() => VartoOrderItem, {
+        mappedBy: "varto_order",
+    }),
 })
 
 export default VartoOrder

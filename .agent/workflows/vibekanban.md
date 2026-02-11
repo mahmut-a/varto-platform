@@ -1,5 +1,5 @@
 ---
-trigger: glob
+description: vibekanban
 ---
 
 Vibe Kanban ile projenin her adımını takip etmek istiyorum.

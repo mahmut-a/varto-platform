@@ -33,8 +33,9 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
     }
 
     // Re-fetch with items
-    const order = await orderExtService.retrieveVartoOrder(varto_order.id)
-    const items = await orderExtService.listVartoOrderItems({ varto_order_id: varto_order.id })
+    const order = await orderExtService.retrieveVartoOrder(varto_order.id, {
+        relations: ["items"],
+    })
 
-    res.status(201).json({ varto_order: { ...order, items } })
+    res.status(201).json({ varto_order: order })
 }

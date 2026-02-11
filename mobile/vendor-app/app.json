@@ -22,7 +22,8 @@
             },
             "edgeToEdgeEnabled": true,
             "predictiveBackGestureEnabled": false,
-            "package": "com.zarifevren.vendorapp"
+            "package": "com.zarifevren.vendorapp",
+            "usesCleartextTraffic": true
         },
         "web": {
             "favicon": "./assets/favicon.png"

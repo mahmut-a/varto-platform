@@ -8,7 +8,9 @@ export const GET = async (req: MedusaRequest, res: MedusaResponse) => {
     if (req.query.vendor_id) {
         filters.vendor_id = req.query.vendor_id
     }
-    const varto_orders = await orderExtService.listVartoOrders(filters)
+    const varto_orders = await orderExtService.listVartoOrders(filters, {
+        relations: ["items"],
+    })
     res.json({ varto_orders })
 }
 

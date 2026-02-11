@@ -20,7 +20,8 @@
       "adaptiveIcon": {
         "backgroundColor": "#ffffff"
       },
-      "package": "com.varto.customer"
+      "package": "com.varto.customer",
+      "usesCleartextTraffic": true
     },
     "extra": {
       "eas": {
