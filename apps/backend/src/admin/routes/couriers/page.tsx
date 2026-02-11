@@ -40,7 +40,8 @@ const CouriersPage = () => {
 
     const handleSave = async () => {
         const url = editing ? `/admin/couriers/${editing.id}` : "/admin/couriers"
-        await fetch(url, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) })
+        const res = await fetch(url, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) })
+        if (!res.ok) { const err = await res.json().catch(() => ({})); alert(err.message || "Hata oluştu"); return }
         setModalOpen(false)
         fetchCouriers()
     }
@@ -103,11 +104,11 @@ const CouriersPage = () => {
                         <div className="flex w-full max-w-lg flex-col gap-y-4">
                             <Heading>{editing ? "Kurye Düzenle" : "Yeni Kurye"}</Heading>
                             <div className="flex flex-col gap-y-1">
-                                <Label>İsim</Label>
+                                <Label>İsim *</Label>
                                 <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Kurye adı" />
                             </div>
                             <div className="flex flex-col gap-y-1">
-                                <Label>Telefon</Label>
+                                <Label>Telefon *</Label>
                                 <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="0555 123 4567" />
                             </div>
                             <div className="flex flex-col gap-y-1">
@@ -115,7 +116,7 @@ const CouriersPage = () => {
                                 <Input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="kurye@example.com" />
                             </div>
                             <div className="flex flex-col gap-y-1">
-                                <Label>Araç Tipi</Label>
+                                <Label>Araç Tipi *</Label>
                                 <Select value={form.vehicle_type} onValueChange={(val) => setForm({ ...form, vehicle_type: val })}>
                                     <Select.Trigger><Select.Value placeholder="Araç seçin" /></Select.Trigger>
                                     <Select.Content>

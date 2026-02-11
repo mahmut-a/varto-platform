@@ -42,13 +42,18 @@ const ListingsPage = () => {
     const openCreate = () => { setEditing(null); setForm({ ...emptyListing }); setModalOpen(true) }
     const openEdit = (l: any) => {
         setEditing(l)
-        setForm({ title: l.title, description: l.description || "", category: l.category || "other", price: l.price || 0, location: l.location || "", contact_name: l.contact_name || "", contact_phone: l.contact_phone || "", status: l.status || "pending" })
+        setForm({
+            title: l.title, description: l.description || "", category: l.category || "other",
+            price: l.price || 0, location: l.location || "", contact_name: l.contact_name || "",
+            contact_phone: l.contact_phone || "", status: l.status || "pending",
+        })
         setModalOpen(true)
     }
 
     const handleSave = async () => {
         const url = editing ? `/admin/listings/${editing.id}` : "/admin/listings"
-        await fetch(url, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) })
+        const res = await fetch(url, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) })
+        if (!res.ok) { const err = await res.json().catch(() => ({})); alert(err.message || "Hata oluştu"); return }
         setModalOpen(false)
         fetchListings()
     }
@@ -79,6 +84,7 @@ const ListingsPage = () => {
                                     <Table.HeaderCell>Başlık</Table.HeaderCell>
                                     <Table.HeaderCell>Kategori</Table.HeaderCell>
                                     <Table.HeaderCell>Fiyat</Table.HeaderCell>
+                                    <Table.HeaderCell>Konum</Table.HeaderCell>
                                     <Table.HeaderCell>İletişim</Table.HeaderCell>
                                     <Table.HeaderCell>Durum</Table.HeaderCell>
                                     <Table.HeaderCell>İşlemler</Table.HeaderCell>
@@ -92,7 +98,8 @@ const ListingsPage = () => {
                                             <Table.Cell><Text size="small" weight="plus">{l.title}</Text></Table.Cell>
                                             <Table.Cell><Text size="small">{CATEGORY_MAP[l.category] || l.category}</Text></Table.Cell>
                                             <Table.Cell><Text size="small">{l.price != null ? `₺${Number(l.price).toLocaleString("tr-TR")}` : "—"}</Text></Table.Cell>
-                                            <Table.Cell><Text size="small" className="text-ui-fg-muted">{l.contact_name}</Text></Table.Cell>
+                                            <Table.Cell><Text size="small" className="text-ui-fg-muted">{l.location}</Text></Table.Cell>
+                                            <Table.Cell><Text size="small" className="text-ui-fg-muted">{l.contact_name} · {l.contact_phone}</Text></Table.Cell>
                                             <Table.Cell><Badge color={status.color} size="2xsmall">{status.label}</Badge></Table.Cell>
                                             <Table.Cell>
                                                 <div className="flex gap-2">
@@ -123,15 +130,15 @@ const ListingsPage = () => {
                         <div className="flex w-full max-w-lg flex-col gap-y-4">
                             <Heading>{editing ? "İlan Düzenle" : "Yeni İlan"}</Heading>
                             <div className="flex flex-col gap-y-1">
-                                <Label>Başlık</Label>
+                                <Label>Başlık *</Label>
                                 <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="İlan başlığı" />
                             </div>
                             <div className="flex flex-col gap-y-1">
-                                <Label>Açıklama</Label>
-                                <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Açıklama" />
+                                <Label>Açıklama *</Label>
+                                <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="İlan açıklaması" />
                             </div>
                             <div className="flex flex-col gap-y-1">
-                                <Label>Kategori</Label>
+                                <Label>Kategori *</Label>
                                 <Select value={form.category} onValueChange={(val) => setForm({ ...form, category: val })}>
                                     <Select.Trigger><Select.Value /></Select.Trigger>
                                     <Select.Content>
@@ -145,18 +152,18 @@ const ListingsPage = () => {
                                     <Input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: Number(e.target.value) })} />
                                 </div>
                                 <div className="flex flex-col gap-y-1">
-                                    <Label>Konum</Label>
-                                    <Input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder="Konum" />
+                                    <Label>Konum *</Label>
+                                    <Input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder="Şehir / İlçe" />
                                 </div>
                             </div>
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="flex flex-col gap-y-1">
-                                    <Label>İletişim Adı</Label>
-                                    <Input value={form.contact_name} onChange={(e) => setForm({ ...form, contact_name: e.target.value })} />
+                                    <Label>İletişim Adı *</Label>
+                                    <Input value={form.contact_name} onChange={(e) => setForm({ ...form, contact_name: e.target.value })} placeholder="Ad Soyad" />
                                 </div>
                                 <div className="flex flex-col gap-y-1">
-                                    <Label>İletişim Telefon</Label>
-                                    <Input value={form.contact_phone} onChange={(e) => setForm({ ...form, contact_phone: e.target.value })} />
+                                    <Label>İletişim Telefon *</Label>
+                                    <Input value={form.contact_phone} onChange={(e) => setForm({ ...form, contact_phone: e.target.value })} placeholder="0555 123 4567" />
                                 </div>
                             </div>
                         </div>
