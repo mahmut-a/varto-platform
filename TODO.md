@@ -6,7 +6,7 @@
 | Bileşen | Durum | Notlar |
 |---------|-------|--------|
 | **Backend — Medusa v2** | ✅ Çalışıyor | Lokal + VPS (173.212.246.83:9000) |
-| **Custom Modüller** | ✅ 7 modül | vendor, courier, listing, appointment, order-extension, varto-notification, customer |
+| **Custom Modüller** | ✅ 8 modül | vendor, courier, listing, appointment, order-extension, varto-notification, customer, vendor-product |
 | **Admin Web Panel** | ✅ Temel | routes: vendors, couriers, listings, appointments, orders, admin-users |
 | **Store API** | ✅ Temel | vendors, listings, orders, appointments, customer-auth |
 | **Admin API** | ✅ Temel | CRUD endpoints tüm modüller için |
@@ -18,7 +18,7 @@
 ### ⚠️ Eksik / Boş Bileşenler
 | Bileşen | Durum | 
 |---------|-------|
-| **Vendor App** | ❌ Boş klasör — hiç kod yok |
+| **Vendor App** | ✅ Tamamlandı | Login, Dashboard, Orders, Menu, Settings |
 | **Courier App** | ❌ Boş klasör — hiç kod yok |
 | **Workflows** | ❌ Sadece README — sipariş akışı yok |
 | **Subscribers** | ❌ Sadece README — event dinleyici yok |
@@ -36,16 +36,15 @@
 - [ ] Nginx reverse proxy kur (port 9000 yerine 80/443 üzerinden eriş)
 - [ ] SSL sertifikası (Let's Encrypt + domain adı)
 
-### 1.2 · Vendor App (İşletme Uygulaması)
-Bu uygulama olmadan işletmeler sipariş alamaz:
-- [ ] Proje iskeletini oluştur (Expo + React Native)
-- [ ] Vendor Login (email/şifre veya telefon)
-- [ ] Dashboard — bugünkü siparişler, gelir
-- [ ] Sipariş listesi — pending → confirmed → preparing → ready
-- [ ] Sipariş detayı — ürünler, müşteri bilgisi, adres
-- [ ] Sipariş durumu güncelleme (onayla/hazırla/hazır)
-- [ ] Menü/ürün yönetimi (listing CRUD)
-- [ ] Çalışma saatleri güncelleme
+### 1.2 · Vendor App (İşletme Uygulaması) ✅
+- [x] Proje iskeletini oluştur (Expo + React Native)
+- [x] Vendor Login (email/şifre)
+- [x] Dashboard — bugünkü siparişler, gelir
+- [x] Sipariş listesi — pending → confirmed → preparing → ready
+- [x] Sipariş detayı — ürünler, müşteri bilgisi, adres
+- [x] Sipariş durumu güncelleme (onayla/hazırla/hazır)
+- [x] Menü/ürün yönetimi (CRUD + modal)
+- [x] Ayarlar (profil düzenle, açık/kapalı toggle)
 - [ ] Push notification alımı
 - [ ] EAS build config
 
@@ -91,19 +90,19 @@ Bu uygulama olmadan teslimat yapılamaz:
 - [ ] Bildirim gönderme utility fonksiyonu
 - [ ] Vendor/Courier/Customer ayrı token yönetimi
 
-### 2.5 · Vendor Ürün/Menü Sistemi
-Şu an vendor'ların ürün/menü listesi yok:
-- [ ] `VendorProduct` (veya `MenuItem`) modülü oluştur
-- [ ] Store API: vendor'ın menüsünü listele
-- [ ] Admin API: menü CRUD
-- [ ] Customer App: vendor menüsünden ürün seç → sepete ekle
+### 2.5 · Vendor Ürün/Menü Sistemi ✅
+- [x] `VendorProduct` modülü oluşturuldu
+- [x] Store API: `GET /store/vendor-products?vendor_id=xxx`
+- [x] Admin API: CRUD `/admin/vendor-products`
+- [x] Customer App: VendorDetailScreen'de gerçek ürün listesi
+- [x] Vendor App: Menu ekranında CRUD + modal
 
 ---
 
 ## 🟢 Öncelik 3: Customer App İyileştirmeler
 
 ### 3.1 · Eksik Özellikler
-- [ ] Vendor menü/ürün listesi ekranı (VendorDetail'de)
+- [x] Vendor menü/ürün listesi ekranı (VendorDetail'de)
 - [ ] Sepetten sipariş oluşturma akışını tamamla (adres, ödeme yöntemi seçimi)
 - [ ] Gerçek zamanlı sipariş takibi (polling veya WebSocket)
 - [ ] Pull-to-refresh tüm listelerde
