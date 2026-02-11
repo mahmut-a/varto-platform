@@ -22,15 +22,15 @@ interface CartItem {
     notes: string
 }
 
-export default function CartScreen({ route, navigation }: any) {
+export default function CartScreen({ route, navigation, customer }: any) {
     const c = getColors()
     const t = getTypography()
 
     const [items, setItems] = useState<CartItem[]>([])
     const [vendor, setVendor] = useState<any>(null)
-    const [address, setAddress] = useState("")
+    const [address, setAddress] = useState(customer?.address || "")
     const [notes, setNotes] = useState("")
-    const [phone, setPhone] = useState("")
+    const [phone, setPhone] = useState(customer?.phone || "")
     const [submitting, setSubmitting] = useState(false)
     const [orderId, setOrderId] = useState<string | null>(null)
 
@@ -74,6 +74,8 @@ export default function CartScreen({ route, navigation }: any) {
         try {
             const order = await createOrder({
                 vendor_id: vendor.id,
+                customer_id: customer?.id || null,
+                customer_phone: customer?.phone || phone,
                 delivery_address: { address, phone },
                 delivery_notes: notes || null,
                 delivery_fee: deliveryFee,

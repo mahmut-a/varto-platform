@@ -3,6 +3,8 @@ import { model } from "@medusajs/framework/utils"
 const VartoOrder = model.define("varto_order", {
     id: model.id().primaryKey(),
     order_id: model.text().nullable(),
+    customer_id: model.text().nullable(),
+    customer_phone: model.text().nullable(),
     vendor_id: model.text(),
     courier_id: model.text().nullable(),
     varto_status: model.enum([

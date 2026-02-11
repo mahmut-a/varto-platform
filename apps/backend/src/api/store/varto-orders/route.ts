@@ -8,6 +8,8 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
 
     const varto_order = await orderExtService.createVartoOrders({
         vendor_id: body.vendor_id,
+        customer_id: body.customer_id || null,
+        customer_phone: body.customer_phone || null,
         delivery_address: body.delivery_address || {},
         delivery_notes: body.delivery_notes || null,
         delivery_fee: body.delivery_fee || 0,

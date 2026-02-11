@@ -99,6 +99,31 @@ export const getStatusColor = (status: string) => {
     return map[status] || c.tag.neutral
 }
 
+// statusColors — same as getStatusColor but with text/bg keys for compatibility
+export const statusColors = {
+    pending: { bg: "#FFF6ED", text: "#C4320A" },
+    confirmed: { bg: "#EFF8FF", text: "#175CD3" },
+    preparing: { bg: "#F4F3FF", text: "#5925DC" },
+    ready: { bg: "#ECFDF3", text: "#027A48" },
+    assigned: { bg: "#EFF8FF", text: "#175CD3" },
+    accepted: { bg: "#ECFDF3", text: "#027A48" },
+    delivering: { bg: "#FFF6ED", text: "#C4320A" },
+    delivered: { bg: "#ECFDF3", text: "#027A48" },
+    cancelled: { bg: "#FEF3F2", text: "#B42318" },
+}
+
+export const statusLabels: Record<string, string> = {
+    pending: "Bekliyor",
+    confirmed: "Onaylandı",
+    preparing: "Hazırlanıyor",
+    ready: "Hazır",
+    assigned: "Kurye Atandı",
+    accepted: "Kurye Kabul Etti",
+    delivering: "Yolda",
+    delivered: "Teslim Edildi",
+    cancelled: "İptal",
+}
+
 // Static export for non-reactive usage (initial render)
 export const colors = getColors()
 

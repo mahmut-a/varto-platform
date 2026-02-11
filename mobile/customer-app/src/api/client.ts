@@ -22,7 +22,41 @@ const api = axios.create({
     },
 })
 
+let customerToken: string | null = null
+
+export const setCustomerToken = (token: string | null) => {
+    customerToken = token
+    if (token) {
+        api.defaults.headers.common["Authorization"] = `Bearer ${token}`
+    } else {
+        delete api.defaults.headers.common["Authorization"]
+    }
+}
+
+export const getCustomerToken = () => customerToken
 export const getApiBaseUrl = () => BASE_URL
+
+// ── Auth ──
+export const sendOtp = async (phone: string) => {
+    const { data } = await api.post("/store/auth/send-otp", { phone })
+    return data
+}
+
+export const verifyOtp = async (phone: string, otp: string) => {
+    const { data } = await api.post("/store/auth/verify-otp", { phone, otp })
+    if (data.token) setCustomerToken(data.token)
+    return data
+}
+
+export const getMe = async () => {
+    const { data } = await api.get("/store/auth/me")
+    return data.customer
+}
+
+export const updateProfile = async (profileData: any) => {
+    const { data } = await api.post("/store/auth/me", profileData)
+    return data.customer
+}
 
 // ── Vendors ──
 export const getVendors = async () => {
@@ -55,6 +89,11 @@ export const createOrder = async (orderData: any) => {
 export const getOrder = async (id: string) => {
     const { data } = await api.get(`/store/varto-orders/${id}`)
     return data.varto_order
+}
+
+export const getCustomerOrders = async (customerId: string) => {
+    const { data } = await api.get(`/store/customers/${customerId}/orders`)
+    return data.varto_orders
 }
 
 // ── Appointments ──

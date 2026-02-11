@@ -21,5 +21,6 @@ module.exports = defineConfig({
     { resolve: "./src/modules/appointment" },
     { resolve: "./src/modules/order-extension" },
     { resolve: "./src/modules/varto-notification" },
+    { resolve: "./src/modules/customer" },
   ],
 })

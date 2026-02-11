@@ -1,47 +1,55 @@
-import React from "react"
-import { useColorScheme } from "react-native"
+import React, { useState, useEffect } from "react"
+import { useColorScheme, ActivityIndicator, View } from "react-native"
 import { StatusBar } from "expo-status-bar"
 import { NavigationContainer, DefaultTheme, DarkTheme } from "@react-navigation/native"
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs"
 import { createNativeStackNavigator } from "@react-navigation/native-stack"
 import { SafeAreaProvider } from "react-native-safe-area-context"
+import AsyncStorage from "@react-native-async-storage/async-storage"
 import { Ionicons } from "@expo/vector-icons"
 import { getColors } from "./src/theme/tokens"
+import { setCustomerToken, getMe } from "./src/api/client"
 
+import PhoneLoginScreen from "./src/screens/PhoneLoginScreen"
+import OTPScreen from "./src/screens/OTPScreen"
 import HomeScreen from "./src/screens/HomeScreen"
 import VendorDetailScreen from "./src/screens/VendorDetailScreen"
 import CartScreen from "./src/screens/CartScreen"
 import OrderTrackingScreen from "./src/screens/OrderTrackingScreen"
 import ListingsScreen from "./src/screens/ListingsScreen"
+import ProfileScreen from "./src/screens/ProfileScreen"
+import OrderHistoryScreen from "./src/screens/OrderHistoryScreen"
+import FavoritesScreen from "./src/screens/FavoritesScreen"
 
 const Stack = createNativeStackNavigator()
 const Tab = createBottomTabNavigator()
 
+const STORAGE_KEYS = { token: "@varto_token", customer: "@varto_customer" }
+
+// ─── Stack Navigators ───
 function HomeStack() {
     const c = getColors()
+    const headerOpts = {
+        headerStyle: { backgroundColor: c.bg.base },
+        headerTintColor: c.fg.base,
+        headerShadowVisible: false,
+        headerTitleStyle: { fontWeight: "600" as const, fontSize: 16 },
+    }
     return (
-        <Stack.Navigator screenOptions={{
-            headerStyle: { backgroundColor: c.bg.base },
-            headerTintColor: c.fg.base,
-            headerShadowVisible: false,
-            headerTitleStyle: { fontWeight: "600", fontSize: 16 },
-        }}>
+        <Stack.Navigator screenOptions={headerOpts}>
             <Stack.Screen name="Home" component={HomeScreen} options={{ title: "İşletmeler" }} />
             <Stack.Screen name="VendorDetail" component={VendorDetailScreen} options={({ route }: any) => ({ title: route.params?.vendor?.name || "İşletme" })} />
         </Stack.Navigator>
     )
 }
 
-function CartStack() {
+function CartStack({ customer }: { customer: any }) {
     const c = getColors()
     return (
-        <Stack.Navigator screenOptions={{
-            headerStyle: { backgroundColor: c.bg.base },
-            headerTintColor: c.fg.base,
-            headerShadowVisible: false,
-            headerTitleStyle: { fontWeight: "600", fontSize: 16 },
-        }}>
-            <Stack.Screen name="Cart" component={CartScreen} options={{ title: "Sepet" }} />
+        <Stack.Navigator screenOptions={{ headerStyle: { backgroundColor: c.bg.base }, headerTintColor: c.fg.base, headerShadowVisible: false, headerTitleStyle: { fontWeight: "600" as const, fontSize: 16 } }}>
+            <Stack.Screen name="Cart" options={{ title: "Sepet" }}>
+                {(props) => <CartScreen {...props} customer={customer} />}
+            </Stack.Screen>
         </Stack.Navigator>
     )
 }
@@ -49,34 +57,89 @@ function CartStack() {
 function OrdersStack() {
     const c = getColors()
     return (
-        <Stack.Navigator screenOptions={{
-            headerStyle: { backgroundColor: c.bg.base },
-            headerTintColor: c.fg.base,
-            headerShadowVisible: false,
-            headerTitleStyle: { fontWeight: "600", fontSize: 16 },
-        }}>
-            <Stack.Screen name="OrderTracking" component={OrderTrackingScreen} options={{ title: "Siparişlerim" }} />
+        <Stack.Navigator screenOptions={{ headerStyle: { backgroundColor: c.bg.base }, headerTintColor: c.fg.base, headerShadowVisible: false, headerTitleStyle: { fontWeight: "600" as const, fontSize: 16 } }}>
+            <Stack.Screen name="OrderTracking" component={OrderTrackingScreen} options={{ title: "Sipariş Takip" }} />
         </Stack.Navigator>
     )
 }
 
-function ListingsStack() {
+function ProfileStack({ customer, onLogout, onUpdateCustomer }: { customer: any; onLogout: () => void; onUpdateCustomer: (c: any) => void }) {
     const c = getColors()
+    const headerOpts = { headerStyle: { backgroundColor: c.bg.base }, headerTintColor: c.fg.base, headerShadowVisible: false, headerTitleStyle: { fontWeight: "600" as const, fontSize: 16 } }
     return (
-        <Stack.Navigator screenOptions={{
-            headerStyle: { backgroundColor: c.bg.base },
-            headerTintColor: c.fg.base,
-            headerShadowVisible: false,
-            headerTitleStyle: { fontWeight: "600", fontSize: 16 },
-        }}>
-            <Stack.Screen name="Listings" component={ListingsScreen} options={{ title: "İlanlar" }} />
+        <Stack.Navigator screenOptions={headerOpts}>
+            <Stack.Screen name="Profile" options={{ title: "Profilim" }}>
+                {(props) => <ProfileScreen {...props} customer={customer} onLogout={onLogout} onUpdateCustomer={onUpdateCustomer} />}
+            </Stack.Screen>
+            <Stack.Screen name="OrderHistory" options={{ title: "Sipariş Geçmişi" }}>
+                {(props) => <OrderHistoryScreen {...props} customer={customer} />}
+            </Stack.Screen>
+            <Stack.Screen name="Favorites" component={FavoritesScreen} options={{ title: "Favorilerim" }} />
         </Stack.Navigator>
     )
 }
 
+// ─── Main App ───
 export default function App() {
     const scheme = useColorScheme()
     const c = getColors()
+
+    const [authState, setAuthState] = useState<"loading" | "phone" | "otp" | "authenticated">("loading")
+    const [phone, setPhone] = useState("")
+    const [customer, setCustomer] = useState<any>(null)
+
+    // Restore session on startup
+    useEffect(() => {
+        (async () => {
+            try {
+                const token = await AsyncStorage.getItem(STORAGE_KEYS.token)
+                const stored = await AsyncStorage.getItem(STORAGE_KEYS.customer)
+                if (token && stored) {
+                    setCustomerToken(token)
+                    setCustomer(JSON.parse(stored))
+                    // Verify token is still valid
+                    try {
+                        const fresh = await getMe()
+                        setCustomer(fresh)
+                        setAuthState("authenticated")
+                    } catch {
+                        // Token expired — clear and show login
+                        await AsyncStorage.multiRemove([STORAGE_KEYS.token, STORAGE_KEYS.customer])
+                        setCustomerToken(null)
+                        setAuthState("phone")
+                    }
+                } else {
+                    setAuthState("phone")
+                }
+            } catch {
+                setAuthState("phone")
+            }
+        })()
+    }, [])
+
+    const handleOtpSent = (phoneNum: string) => {
+        setPhone(phoneNum)
+        setAuthState("otp")
+    }
+
+    const handleVerified = async (cust: any, token: string) => {
+        setCustomer(cust)
+        await AsyncStorage.setItem(STORAGE_KEYS.token, token)
+        await AsyncStorage.setItem(STORAGE_KEYS.customer, JSON.stringify(cust))
+        setAuthState("authenticated")
+    }
+
+    const handleLogout = async () => {
+        await AsyncStorage.multiRemove([STORAGE_KEYS.token, STORAGE_KEYS.customer])
+        setCustomerToken(null)
+        setCustomer(null)
+        setAuthState("phone")
+    }
+
+    const handleUpdateCustomer = async (cust: any) => {
+        setCustomer(cust)
+        await AsyncStorage.setItem(STORAGE_KEYS.customer, JSON.stringify(cust))
+    }
 
     const MedusaTheme = {
         ...(scheme === "dark" ? DarkTheme : DefaultTheme),
@@ -90,6 +153,38 @@ export default function App() {
         },
     }
 
+    // ── Loading ──
+    if (authState === "loading") {
+        return (
+            <SafeAreaProvider>
+                <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: c.bg.base }}>
+                    <ActivityIndicator size="large" color={c.interactive} />
+                </View>
+                <StatusBar style={scheme === "dark" ? "light" : "dark"} />
+            </SafeAreaProvider>
+        )
+    }
+
+    // ── Auth Flow ──
+    if (authState === "phone") {
+        return (
+            <SafeAreaProvider>
+                <PhoneLoginScreen onOtpSent={handleOtpSent} />
+                <StatusBar style={scheme === "dark" ? "light" : "dark"} />
+            </SafeAreaProvider>
+        )
+    }
+
+    if (authState === "otp") {
+        return (
+            <SafeAreaProvider>
+                <OTPScreen phone={phone} onVerified={handleVerified} onBack={() => setAuthState("phone")} />
+                <StatusBar style={scheme === "dark" ? "light" : "dark"} />
+            </SafeAreaProvider>
+        )
+    }
+
+    // ── Authenticated ──
     return (
         <SafeAreaProvider>
             <NavigationContainer theme={MedusaTheme}>
@@ -106,15 +201,21 @@ export default function App() {
                                 ListingsTab: "document-text-outline",
                                 CartTab: "bag-outline",
                                 OrdersTab: "receipt-outline",
+                                ProfileTab: "person-outline",
                             }
                             return <Ionicons name={(icons[route.name] || "ellipse-outline") as any} size={size} color={color} />
                         },
                     })}
                 >
                     <Tab.Screen name="HomeTab" component={HomeStack} options={{ title: "İşletmeler" }} />
-                    <Tab.Screen name="ListingsTab" component={ListingsStack} options={{ title: "İlanlar" }} />
-                    <Tab.Screen name="CartTab" component={CartStack} options={{ title: "Sepet" }} />
-                    <Tab.Screen name="OrdersTab" component={OrdersStack} options={{ title: "Siparişlerim" }} />
+                    <Tab.Screen name="ListingsTab" component={ListingsScreen} options={{ title: "İlanlar", headerShown: true, headerStyle: { backgroundColor: c.bg.base }, headerTintColor: c.fg.base, headerShadowVisible: false, headerTitle: "İlanlar" }} />
+                    <Tab.Screen name="CartTab" options={{ title: "Sepet" }}>
+                        {() => <CartStack customer={customer} />}
+                    </Tab.Screen>
+                    <Tab.Screen name="OrdersTab" component={OrdersStack} options={{ title: "Takip" }} />
+                    <Tab.Screen name="ProfileTab" options={{ title: "Profil" }}>
+                        {() => <ProfileStack customer={customer} onLogout={handleLogout} onUpdateCustomer={handleUpdateCustomer} />}
+                    </Tab.Screen>
                 </Tab.Navigator>
             </NavigationContainer>
             <StatusBar style={scheme === "dark" ? "light" : "dark"} />
