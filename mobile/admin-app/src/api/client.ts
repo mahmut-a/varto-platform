@@ -3,19 +3,19 @@ import Constants from "expo-constants"
 
 const VPS_URL = "https://api.vartoyazilim.com"
 
-// Expo Dev Server'ın IP adresini otomatik al
-// Expo Go uygulamasında çalışırken debuggerHost üzerinden bulunur
+// Local backend kullanmak istiyorsanız true yapın
+const USE_LOCAL_BACKEND = false
+
 const getBaseUrl = () => {
-    // Production build → VPS backend
-    if (!__DEV__) return VPS_URL
-    // Development → local backend via Expo debuggerHost
-    const debuggerHost = Constants.expoConfig?.hostUri || Constants.manifest2?.extra?.expoGo?.debuggerHost
-    if (debuggerHost) {
-        const host = debuggerHost.split(":")[0]
-        return `http://${host}:9000`
+    if (USE_LOCAL_BACKEND && __DEV__) {
+        const debuggerHost = Constants.expoConfig?.hostUri || Constants.manifest2?.extra?.expoGo?.debuggerHost
+        if (debuggerHost) {
+            const host = debuggerHost.split(":")[0]
+            return `http://${host}:9000`
+        }
+        return "http://localhost:9000"
     }
-    // Fallback
-    return "http://localhost:9000"
+    return VPS_URL
 }
 
 const BASE_URL = getBaseUrl()

@@ -19,8 +19,8 @@ interface LoginScreenProps {
 }
 
 export default function LoginScreen({ onLogin }: LoginScreenProps) {
-    const [email, setEmail] = useState("vartoadmin@varto.com")
-    const [password, setPassword] = useState("")
+    const [email, setEmail] = useState("admin@vartoyazilim.com")
+    const [password, setPassword] = useState("VartoAdmin2026")
     const [loading, setLoading] = useState(false)
     const [showPassword, setShowPassword] = useState(false)
 

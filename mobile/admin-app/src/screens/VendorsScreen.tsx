@@ -32,7 +32,7 @@ const CATEGORY_MAP = Object.fromEntries(CATEGORIES.map((c) => [c.value, c.label]
 const slugify = (t: string) =>
     t.toLowerCase().replace(/ğ/g, "g").replace(/ü/g, "u").replace(/ş/g, "s").replace(/ı/g, "i").replace(/ö/g, "o").replace(/ç/g, "c").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")
 
-const emptyForm = { name: "", slug: "", phone: "", address: "", iban: "", category: "restaurant", is_active: true, email: "", description: "" }
+const emptyForm = { name: "", slug: "", phone: "", address: "", iban: "", category: "restaurant", is_active: true, email: "", description: "", password: "" }
 
 export default function VendorsScreen() {
     const [vendors, setVendors] = useState<any[]>([])
@@ -57,7 +57,7 @@ export default function VendorsScreen() {
         setForm({
             name: v.name, slug: v.slug || "", phone: v.phone || "", address: v.address || "",
             iban: v.iban || "", category: v.category || "restaurant", is_active: v.is_active ?? true,
-            email: v.email || "", description: v.description || "",
+            email: v.email || "", description: v.description || "", password: "",
         })
         setModalVisible(true)
     }
@@ -67,11 +67,20 @@ export default function VendorsScreen() {
             Alert.alert("Hata", "İsim, Telefon, Adres ve IBAN zorunludur.")
             return
         }
+        if (!editing && form.email && !form.password) {
+            Alert.alert("Hata", "E-posta girildiğinde şifre de zorunludur.")
+            return
+        }
         setSaving(true)
         try {
-            const payload: any = { ...form, slug: form.slug || slugify(form.name) }
+            const { password: pw, ...formWithoutPw } = form
+            const payload: any = { ...formWithoutPw, slug: form.slug || slugify(form.name) }
             if (!payload.email) payload.email = null
             if (!payload.description) payload.description = null
+            // Yeni oluşturmada email+password varsa backend'e gönder (auth user oluşturur)
+            if (!editing && form.email && pw) {
+                payload.password = pw
+            }
             if (editing) await updateVendor(editing.id, payload)
             else await createVendor(payload)
             setModalVisible(false)
@@ -189,7 +198,14 @@ export default function VendorsScreen() {
                         <TextInput style={styles.input} value={form.phone} onChangeText={(v) => setForm({ ...form, phone: v })} placeholder="05XX XXX XXXX" keyboardType="phone-pad" placeholderTextColor={colors.fg.muted} />
 
                         <Text style={styles.inputLabel}>E-posta</Text>
-                        <TextInput style={styles.input} value={form.email} onChangeText={(v) => setForm({ ...form, email: v })} placeholder="info@isletme.com" keyboardType="email-address" placeholderTextColor={colors.fg.muted} />
+                        <TextInput style={styles.input} value={form.email} onChangeText={(v) => setForm({ ...form, email: v })} placeholder="info@isletme.com" keyboardType="email-address" autoCapitalize="none" placeholderTextColor={colors.fg.muted} />
+
+                        {!editing && (
+                            <>
+                                <Text style={styles.inputLabel}>Giriş Şifresi {form.email ? "*" : ""}</Text>
+                                <TextInput style={styles.input} value={form.password} onChangeText={(v) => setForm({ ...form, password: v })} placeholder="Vendor app giriş şifresi" secureTextEntry placeholderTextColor={colors.fg.muted} />
+                            </>
+                        )}
 
                         <Text style={styles.inputLabel}>Adres *</Text>
                         <TextInput style={styles.input} value={form.address} onChangeText={(v) => setForm({ ...form, address: v })} placeholder="Adres" placeholderTextColor={colors.fg.muted} />

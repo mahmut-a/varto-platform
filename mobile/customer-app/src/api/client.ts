@@ -3,21 +3,24 @@ import Constants from "expo-constants"
 
 const VPS_URL = "https://api.vartoyazilim.com"
 
+// Local backend kullanmak istiyorsanız true yapın
+const USE_LOCAL_BACKEND = false
+
 const getBaseUrl = () => {
-    // Production build → VPS backend
-    if (!__DEV__) return VPS_URL
-    // Development → local backend via Expo debuggerHost
-    const debuggerHost = Constants.expoConfig?.hostUri || Constants.manifest2?.extra?.expoGo?.debuggerHost
-    if (debuggerHost) {
-        const host = debuggerHost.split(":")[0]
-        return `http://${host}:9000`
+    if (USE_LOCAL_BACKEND && __DEV__) {
+        const debuggerHost = Constants.expoConfig?.hostUri || Constants.manifest2?.extra?.expoGo?.debuggerHost
+        if (debuggerHost) {
+            const host = debuggerHost.split(":")[0]
+            return `http://${host}:9000`
+        }
+        return "http://localhost:9000"
     }
-    return "http://localhost:9000"
+    return VPS_URL
 }
 
 const BASE_URL = getBaseUrl()
 
-const PUBLISHABLE_API_KEY = "pk_a4f8a56d304ae736b3c551d0ba44c0b22424fb404e4ad251d52828dc3b9efed5"
+const PUBLISHABLE_API_KEY = "pk_3e6b05a597fd3200651f1fc61bf7551c1b7070556a6d238be6ae8fef5fdf5c1d"
 
 const api = axios.create({
     baseURL: BASE_URL,

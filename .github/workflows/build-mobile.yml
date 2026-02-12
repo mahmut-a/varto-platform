@@ -1,0 +1,119 @@
+name: Build Mobile Apps (EAS)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mobile/admin-app/**'
+      - 'mobile/customer-app/**'
+      - 'mobile/vendor-app/**'
+  workflow_dispatch:
+    inputs:
+      app:
+        description: 'Which app to build (admin-app, customer-app, vendor-app, all)'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - admin-app
+          - customer-app
+          - vendor-app
+          - all
+      platform:
+        description: 'Platform to build for'
+        required: true
+        default: 'android'
+        type: choice
+        options:
+          - android
+          - ios
+          - all
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      admin: ${{ steps.filter.outputs.admin }}
+      customer: ${{ steps.filter.outputs.customer }}
+      vendor: ${{ steps.filter.outputs.vendor }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            admin:
+              - 'mobile/admin-app/**'
+            customer:
+              - 'mobile/customer-app/**'
+            vendor:
+              - 'mobile/vendor-app/**'
+
+  build-admin:
+    needs: detect-changes
+    if: |
+      needs.detect-changes.outputs.admin == 'true' ||
+      github.event.inputs.app == 'admin-app' ||
+      github.event.inputs.app == 'all'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Install dependencies
+        run: npm install
+        working-directory: mobile/admin-app
+      - name: Build
+        run: eas build --platform ${{ github.event.inputs.platform || 'android' }} --non-interactive --profile preview
+        working-directory: mobile/admin-app
+
+  build-customer:
+    needs: detect-changes
+    if: |
+      needs.detect-changes.outputs.customer == 'true' ||
+      github.event.inputs.app == 'customer-app' ||
+      github.event.inputs.app == 'all'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Install dependencies
+        run: npm install
+        working-directory: mobile/customer-app
+      - name: Build
+        run: eas build --platform ${{ github.event.inputs.platform || 'android' }} --non-interactive --profile preview
+        working-directory: mobile/customer-app
+
+  build-vendor:
+    needs: detect-changes
+    if: |
+      needs.detect-changes.outputs.vendor == 'true' ||
+      github.event.inputs.app == 'vendor-app' ||
+      github.event.inputs.app == 'all'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Install dependencies
+        run: npm install
+        working-directory: mobile/vendor-app
+      - name: Build
+        run: eas build --platform ${{ github.event.inputs.platform || 'android' }} --non-interactive --profile preview
+        working-directory: mobile/vendor-app

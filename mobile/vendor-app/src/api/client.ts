@@ -2,15 +2,23 @@ import axios from "axios"
 import Constants from "expo-constants"
 import { Platform } from "react-native"
 
-// ── Dual-mode API base ──
-const LOCAL_URL = Platform.select({
-    android: `http://${Constants.expoConfig?.hostUri?.split(":")[0] || "10.0.2.2"}:9000`,
-    ios: "http://localhost:9000",
-    default: "http://localhost:9000",
-})
 const VPS_URL = "https://api.vartoyazilim.com"
 
-const BASE = __DEV__ ? LOCAL_URL : VPS_URL
+// Local backend kullanmak istiyorsanız true yapın
+const USE_LOCAL_BACKEND = false
+
+const getBaseUrl = () => {
+    if (USE_LOCAL_BACKEND && __DEV__) {
+        return Platform.select({
+            android: `http://${Constants.expoConfig?.hostUri?.split(":")[0] || "10.0.2.2"}:9000`,
+            ios: "http://localhost:9000",
+            default: "http://localhost:9000",
+        })
+    }
+    return VPS_URL
+}
+
+const BASE = getBaseUrl()
 
 const api = axios.create({ baseURL: BASE, timeout: 15000 })
 

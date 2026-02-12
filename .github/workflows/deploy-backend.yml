@@ -1,0 +1,49 @@
+name: Deploy Backend to VPS
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/backend/**'
+      - 'packages/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to VPS via SSH
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          script: |
+            set -e
+            echo "=== Pulling latest code ==="
+            cd /var/www/varto-platform
+            git fetch origin main
+            git reset --hard origin/main
+
+            echo "=== Installing dependencies ==="
+            pnpm install --frozen-lockfile
+
+            echo "=== Building backend ==="
+            cd apps/backend
+            npx medusa build
+
+            echo "=== Copying .env to build directory ==="
+            cp .env .medusa/server/.env
+
+            echo "=== Installing production dependencies ==="
+            cd .medusa/server
+            pnpm install --prod
+
+            echo "=== Restarting PM2 ==="
+            pm2 delete varto-backend || true
+            pm2 start 'npx medusa start' --name 'varto-backend' --cwd /var/www/varto-platform/apps/backend/.medusa/server
+            pm2 save
+
+            echo "=== Deploy complete! ==="
