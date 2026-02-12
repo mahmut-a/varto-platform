@@ -26,6 +26,7 @@ jobs:
           command_timeout: 10m
           script: |
             export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/.local/share/pnpm:/root/.nvm/versions/node/v22.12.0/bin:$PATH"
+            export CI=true
             set -e
 
             echo "=== Pulling latest code ==="
@@ -34,7 +35,7 @@ jobs:
             git reset --hard origin/main
 
             echo "=== Installing dependencies ==="
-            pnpm install --frozen-lockfile || pnpm install
+            pnpm install --no-frozen-lockfile
 
             echo "=== Building backend ==="
             cd apps/backend
