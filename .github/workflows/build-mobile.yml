@@ -22,15 +22,45 @@ on:
           - android
           - ios
           - all
+  push:
+    branches: [main]
+    paths:
+      - 'mobile/**'
 
 jobs:
+  detect-changes:
+    name: Detect Changes
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    outputs:
+      admin: ${{ steps.filter.outputs.admin }}
+      customer: ${{ steps.filter.outputs.customer }}
+      vendor: ${{ steps.filter.outputs.vendor }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            admin:
+              - 'mobile/admin-app/**'
+            customer:
+              - 'mobile/customer-app/**'
+            vendor:
+              - 'mobile/vendor-app/**'
+
   build-admin:
     name: Build Admin App
-    if: github.event.inputs.app == 'admin-app' || github.event.inputs.app == 'all'
+    needs: [detect-changes]
+    if: |
+      always() && (
+        (github.event_name == 'push' && needs.detect-changes.outputs.admin == 'true') ||
+        (github.event_name == 'workflow_dispatch' && (github.event.inputs.app == 'admin-app' || github.event.inputs.app == 'all'))
+      )
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
@@ -44,16 +74,21 @@ jobs:
         run: npm ci
         working-directory: mobile/admin-app
       - name: Build on EAS
-        run: eas build --platform ${{ github.event.inputs.platform }} --non-interactive --no-wait
+        run: eas build --platform ${{ github.event.inputs.platform || 'android' }} --non-interactive --no-wait
         working-directory: mobile/admin-app
 
   build-customer:
     name: Build Customer App
-    if: github.event.inputs.app == 'customer-app' || github.event.inputs.app == 'all'
+    needs: [detect-changes]
+    if: |
+      always() && (
+        (github.event_name == 'push' && needs.detect-changes.outputs.customer == 'true') ||
+        (github.event_name == 'workflow_dispatch' && (github.event.inputs.app == 'customer-app' || github.event.inputs.app == 'all'))
+      )
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
@@ -67,16 +102,21 @@ jobs:
         run: npm ci
         working-directory: mobile/customer-app
       - name: Build on EAS
-        run: eas build --platform ${{ github.event.inputs.platform }} --non-interactive --no-wait
+        run: eas build --platform ${{ github.event.inputs.platform || 'android' }} --non-interactive --no-wait
         working-directory: mobile/customer-app
 
   build-vendor:
     name: Build Vendor App
-    if: github.event.inputs.app == 'vendor-app' || github.event.inputs.app == 'all'
+    needs: [detect-changes]
+    if: |
+      always() && (
+        (github.event_name == 'push' && needs.detect-changes.outputs.vendor == 'true') ||
+        (github.event_name == 'workflow_dispatch' && (github.event.inputs.app == 'vendor-app' || github.event.inputs.app == 'all'))
+      )
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
@@ -90,5 +130,5 @@ jobs:
         run: npm ci
         working-directory: mobile/vendor-app
       - name: Build on EAS
-        run: eas build --platform ${{ github.event.inputs.platform }} --non-interactive --no-wait
+        run: eas build --platform ${{ github.event.inputs.platform || 'android' }} --non-interactive --no-wait
         working-directory: mobile/vendor-app
