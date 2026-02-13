@@ -6,7 +6,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context"
 import { Ionicons } from "@expo/vector-icons"
 import { colors, spacing, radius, typography } from "../theme/tokens"
-import { login, setAuthToken, setCurrentVendorId, getVendors } from "../api/client"
+import { login, setAuthToken, setCurrentVendorId, getMe, getVendorByUserId, getVendors } from "../api/client"
 
 interface Props {
     onLogin: (vendor: any) => void
@@ -25,21 +25,69 @@ export default function LoginScreen({ onLogin }: Props) {
         }
         setLoading(true)
         try {
+            // 1. Medusa auth ile giriş yap
             const data = await login(email.trim(), password.trim())
             setAuthToken(data.token)
 
-            // Vendor listesinden bu kullanıcının vendor'ını bul
-            const vendors = await getVendors()
-            if (vendors && vendors.length > 0) {
-                const vendor = vendors[0] // İlk vendor'ı al (ileride user-vendor bağlantısı kurulacak)
-                setCurrentVendorId(vendor.id)
-                onLogin(vendor)
-            } else {
-                Alert.alert("Hata", "Bu hesaba bağlı işletme bulunamadı")
+            // 2. Giriş yapan user'ı bul
+            let vendor = null
+
+            try {
+                // Önce /admin/users/me ile user bilgisini al
+                const user = await getMe()
+                if (user?.id) {
+                    // admin_user_id ile eşleşen vendor'ı bul
+                    try {
+                        vendor = await getVendorByUserId(user.id)
+                    } catch {
+                        // by-user endpoint yoksa veya eşleşme yoksa fallback
+                        console.log("getVendorByUserId failed, trying email match...")
+                    }
+                }
+            } catch {
+                console.log("getMe failed, trying email match...")
             }
+
+            // 3. Fallback: email ile eşleştir
+            if (!vendor) {
+                try {
+                    const vendors = await getVendors()
+                    if (vendors && vendors.length > 0) {
+                        // Email ile eşleşen vendor'ı bul
+                        const emailLower = email.trim().toLowerCase()
+                        vendor = vendors.find((v: any) => v.email?.toLowerCase() === emailLower)
+
+                        // Email ile bulunamazsa hata ver
+                        if (!vendor) {
+                            Alert.alert(
+                                "Erişim Hatası",
+                                "Bu email adresine bağlı bir işletme bulunamadı. Lütfen admin ile iletişime geçin."
+                            )
+                            return
+                        }
+                    } else {
+                        Alert.alert("Hata", "Sistemde kayıtlı işletme bulunamadı")
+                        return
+                    }
+                } catch (vendorErr: any) {
+                    Alert.alert("Hata", "İşletme bilgileri alınamadı. Lütfen tekrar deneyin.")
+                    return
+                }
+            }
+
+            setCurrentVendorId(vendor.id)
+            onLogin(vendor)
         } catch (err: any) {
+            const status = err?.response?.status
             const msg = err?.response?.data?.message || "Giriş başarısız"
-            Alert.alert("Giriş Hatası", msg)
+
+            if (status === 401) {
+                Alert.alert("Giriş Hatası", "Email veya şifre hatalı")
+            } else if (status === 404) {
+                Alert.alert("Giriş Hatası", "Bu email adresi ile kayıtlı kullanıcı bulunamadı")
+            } else {
+                Alert.alert("Giriş Hatası", msg)
+            }
         } finally {
             setLoading(false)
         }

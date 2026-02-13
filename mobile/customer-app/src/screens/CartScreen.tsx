@@ -95,7 +95,23 @@ export default function CartScreen({ route, navigation, customer }: any) {
                 { text: "Tamam" },
             ])
         } catch (e: any) {
-            Alert.alert("Hata", e?.response?.data?.message || "Sipariş oluşturulamadı.")
+            const serverMsg = e?.response?.data?.message
+            const status = e?.response?.status
+            let errorMsg = "Sipariş oluşturulamadı. Lütfen tekrar deneyin."
+
+            if (serverMsg) {
+                errorMsg = serverMsg
+            } else if (status === 400) {
+                errorMsg = "Eksik veya hatalı bilgi var. Lütfen kontrol edin."
+            } else if (status === 500) {
+                errorMsg = "Sunucu hatası. Lütfen daha sonra tekrar deneyin."
+            } else if (e?.code === "ECONNABORTED") {
+                errorMsg = "Bağlantı zaman aşımına uğradı."
+            } else if (!e?.response) {
+                errorMsg = "İnternet bağlantınızı kontrol edin."
+            }
+
+            Alert.alert("Sipariş Hatası", errorMsg)
         } finally {
             setSubmitting(false)
         }

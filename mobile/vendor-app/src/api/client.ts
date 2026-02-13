@@ -42,6 +42,25 @@ export const login = async (email: string, password: string) => {
     return data
 }
 
+/**
+ * Login olan admin user'ın bilgilerini al
+ * Medusa v2'de /admin/users/me endpoint'i var
+ */
+export const getMe = async () => {
+    const { data } = await api.get("/admin/users/me")
+    return data.user
+}
+
+/**
+ * Admin user ID ile bağlı vendor'ı bul
+ */
+export const getVendorByUserId = async (userId: string) => {
+    const { data } = await api.get("/admin/vendors/by-user", {
+        params: { user_id: userId },
+    })
+    return data.vendor
+}
+
 // ── Vendor Profile ──
 export const getVendors = async () => {
     const { data } = await api.get("/admin/vendors")
@@ -68,7 +87,7 @@ export const getVendorOrders = async (vendorId?: string) => {
 }
 
 export const updateOrderStatus = async (orderId: string, status: string) => {
-    const { data } = await api.post(`/admin/varto-orders/${orderId}`, { status })
+    const { data } = await api.post(`/admin/varto-orders/${orderId}`, { varto_status: status })
     return data.varto_order
 }
 

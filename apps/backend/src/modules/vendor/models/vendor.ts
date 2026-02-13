@@ -13,6 +13,7 @@ const Vendor = model.define("vendor", {
     is_active: model.boolean().default(true),
     opening_hours: model.json().nullable(),
     image_url: model.text().nullable(),
+    admin_user_id: model.text().nullable(),
     metadata: model.json().nullable(),
 })
 

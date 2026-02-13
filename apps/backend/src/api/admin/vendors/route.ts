@@ -4,52 +4,75 @@ import VendorModuleService from "../../../modules/vendor/service"
 import { Modules } from "@medusajs/framework/utils"
 
 export const GET = async (req: MedusaRequest, res: MedusaResponse) => {
-    const vendorService: VendorModuleService = req.scope.resolve(VENDOR_MODULE)
-    const vendors = await vendorService.listVendors()
-    res.json({ vendors })
+    try {
+        const vendorService: VendorModuleService = req.scope.resolve(VENDOR_MODULE)
+        const vendors = await vendorService.listVendors()
+        res.json({ vendors })
+    } catch (err: any) {
+        console.error("Admin list vendors error:", err?.message || err)
+        res.status(500).json({ message: err?.message || "İşletmeler yüklenemedi" })
+    }
 }
 
 export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
-    const vendorService: VendorModuleService = req.scope.resolve(VENDOR_MODULE)
+    try {
+        const vendorService: VendorModuleService = req.scope.resolve(VENDOR_MODULE)
 
-    const { password, ...vendorData } = req.body as any
+        const { password, ...vendorData } = req.body as any
 
-    // 1. Vendor kaydı oluştur
-    const vendor = await vendorService.createVendors(vendorData)
-
-    // 2. Eğer email ve password varsa, Medusa auth user oluştur
-    // (Vendor app'ten giriş yapabilmesi için gerekli)
-    if (vendorData.email && password) {
-        try {
-            const userService = req.scope.resolve(Modules.USER) as any
-            const authService = req.scope.resolve(Modules.AUTH) as any
-
-            // Medusa user oluştur
-            const user = await userService.createUsers({ email: vendorData.email })
-
-            // Auth identity oluştur (emailpass provider ile - şifre otomatik hash'lenir)
-            const { authIdentity, error } = await authService.register("emailpass", {
-                body: {
-                    email: vendorData.email,
-                    password,
-                },
+        // Validasyon
+        if (!vendorData.name || !vendorData.slug || !vendorData.phone || !vendorData.address || !vendorData.category || !vendorData.iban) {
+            return res.status(400).json({
+                message: "Zorunlu alanlar: name, slug, phone, address, category, iban",
             })
+        }
 
-            if (error) {
-                console.error("Auth register hatasi:", error)
-            } else if (authIdentity) {
-                // User ile auth identity arasında bağlantı kur
-                await authService.updateAuthIdentities({
-                    id: authIdentity.id,
-                    app_metadata: {
-                        user_id: user.id,
+        let adminUserId: string | null = null
+
+        // Eğer email ve password varsa, Medusa auth user oluştur
+        if (vendorData.email && password) {
+            try {
+                const userService = req.scope.resolve(Modules.USER) as any
+                const authService = req.scope.resolve(Modules.AUTH) as any
+
+                // Medusa user oluştur
+                const user = await userService.createUsers({ email: vendorData.email })
+                adminUserId = user.id
+
+                // Auth identity oluştur (emailpass provider ile)
+                const authResult = await authService.register("emailpass", {
+                    body: {
+                        email: vendorData.email,
+                        password,
                     },
                 })
-            }
-        } catch (authErr: any) {
-            console.error("Vendor auth user olusturma hatasi:", authErr?.message || authErr)
-        }
-    }
 
-    res.status(201).json({ vendor })
+                if (authResult.error) {
+                    console.error("Auth register hatası:", authResult.error)
+                } else if (authResult.authIdentity) {
+                    // User ile auth identity arasında bağlantı kur
+                    await authService.updateAuthIdentities({
+                        id: authResult.authIdentity.id,
+                        app_metadata: {
+                            user_id: user.id,
+                        },
+                    })
+                }
+            } catch (authErr: any) {
+                console.error("Vendor auth user oluşturma hatası:", authErr?.message || authErr)
+                // Auth user oluşturulamazsa yine de vendor oluştur
+            }
+        }
+
+        // Vendor kaydı oluştur
+        const vendor = await vendorService.createVendors({
+            ...vendorData,
+            admin_user_id: adminUserId,
+        })
+
+        res.status(201).json({ vendor })
+    } catch (err: any) {
+        console.error("Admin create vendor error:", err?.message || err)
+        res.status(500).json({ message: err?.message || "İşletme oluşturulamadı" })
+    }
 }
