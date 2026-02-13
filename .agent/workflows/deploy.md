@@ -25,12 +25,20 @@ git add -A && git commit -m "deploy: backend update" && git push origin main
 ssh root@173.212.246.83
 cd /var/www/varto-platform
 git pull origin main
+pnpm install
 cd apps/backend
-npx medusa build
+NODE_ENV=development npx medusa build
 cp .env .medusa/server/.env
+cp .env .medusa/server/.env.production
 cd .medusa/server
-pnpm install --prod
+pnpm install
 pm2 delete varto-backend
-pm2 start 'npx medusa start' --name 'varto-backend' --cwd /var/www/varto-platform/apps/backend/.medusa/server
+pm2 start /var/www/varto-platform/apps/backend/ecosystem.config.js
 pm2 save
 ```
+
+## Notes
+- The `ecosystem.config.js` at `/var/www/varto-platform/apps/backend/` sets `NODE_ENV=production` and uses `npx medusa start` as the script.
+- Build must be done with `NODE_ENV=development` (so ts-node is available for config loading).
+- Production start uses `NODE_ENV=production` (via ecosystem config) so ts-node is NOT needed at runtime.
+- `.env.production` is loaded by Medusa when `NODE_ENV=production`.

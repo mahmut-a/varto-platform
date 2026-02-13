@@ -1,6 +1,39 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ORDER_EXTENSION_MODULE } from "../../../modules/order-extension"
 import OrderExtensionModuleService from "../../../modules/order-extension/service"
+import { VENDOR_MODULE } from "../../../modules/vendor"
+import VendorModuleService from "../../../modules/vendor/service"
+import { VARTO_NOTIFICATION_MODULE } from "../../../modules/varto-notification"
+import VartoNotificationModuleService from "../../../modules/varto-notification/service"
+
+// ── Expo Push Notification gönderici ──
+async function sendExpoPushNotification(pushToken: string, title: string, body: string, data?: any) {
+    try {
+        const response = await fetch("https://exp.host/--/api/v2/push/send", {
+            method: "POST",
+            headers: {
+                "Accept": "application/json",
+                "Accept-Encoding": "gzip, deflate",
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                to: pushToken,
+                sound: "default",
+                title,
+                body,
+                data: data || {},
+                priority: "high",
+                channelId: "orders",
+            }),
+        })
+        const result = await response.json()
+        console.log("Expo push notification gönderildi:", result)
+        return result
+    } catch (err: any) {
+        console.error("Expo push notification hatası:", err?.message || err)
+        return null
+    }
+}
 
 export const GET = async (req: MedusaRequest, res: MedusaResponse) => {
     try {
@@ -65,6 +98,52 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
         const order = await orderExtService.retrieveVartoOrder(varto_order.id, {
             relations: ["items"],
         })
+
+        // ── Satıcıya bildirim gönder ──
+        try {
+            const vendorService: VendorModuleService = req.scope.resolve(VENDOR_MODULE)
+            const notificationService: VartoNotificationModuleService = req.scope.resolve(VARTO_NOTIFICATION_MODULE)
+
+            // Vendor bilgilerini getir (push_token için)
+            const vendor = await vendorService.retrieveVendor(body.vendor_id)
+
+            const itemCount = order.items?.length || body.items.length
+            const totalAmount = order.items?.reduce((sum: number, i: any) =>
+                sum + Number(i.total_price || 0), 0) || 0
+
+            const notificationTitle = "🛒 Yeni Sipariş!"
+            const notificationBody = `${itemCount} ürün · ₺${totalAmount.toFixed(2)} — Sipariş onayınızı bekliyor`
+
+            // Veritabanına bildirim kaydet
+            await notificationService.createVartoNotifications({
+                title: notificationTitle,
+                message: notificationBody,
+                type: "order",
+                recipient_type: "vendor",
+                recipient_id: body.vendor_id,
+                is_read: false,
+                reference_id: order.id,
+                reference_type: "varto_order",
+            })
+
+            // Expo Push Notification gönder
+            if (vendor.push_token) {
+                await sendExpoPushNotification(
+                    vendor.push_token,
+                    notificationTitle,
+                    notificationBody,
+                    {
+                        type: "new_order",
+                        order_id: order.id,
+                    }
+                )
+            } else {
+                console.log(`Vendor ${body.vendor_id} için push_token bulunamadı, bildirim veritabanına kaydedildi.`)
+            }
+        } catch (notifErr: any) {
+            // Bildirim hatası sipariş oluşturmayı etkilemez
+            console.error("Bildirim gönderme hatası:", notifErr?.message || notifErr)
+        }
 
         res.status(201).json({ varto_order: order })
     } catch (err: any) {

@@ -20,7 +20,7 @@ const getBaseUrl = () => {
 
 const BASE = getBaseUrl()
 
-const api = axios.create({ baseURL: BASE, timeout: 15000 })
+export const api = axios.create({ baseURL: BASE, timeout: 15000 })
 
 // ── Auth state ──
 let authToken: string | null = null

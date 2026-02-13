@@ -1,9 +1,10 @@
-import React, { useState } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import { StatusBar } from "expo-status-bar"
-import { NavigationContainer } from "@react-navigation/native"
+import { NavigationContainer, NavigationContainerRef } from "@react-navigation/native"
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs"
 import { createNativeStackNavigator } from "@react-navigation/native-stack"
 import { Ionicons } from "@expo/vector-icons"
+import * as Notifications from "expo-notifications"
 import { colors } from "./src/theme/tokens"
 import LoginScreen from "./src/screens/LoginScreen"
 import DashboardScreen from "./src/screens/DashboardScreen"
@@ -11,6 +12,16 @@ import OrdersScreen from "./src/screens/OrdersScreen"
 import OrderDetailScreen from "./src/screens/OrderDetailScreen"
 import MenuScreen from "./src/screens/MenuScreen"
 import SettingsScreen from "./src/screens/SettingsScreen"
+import {
+    configureNotificationHandler,
+    setupNotificationChannel,
+    registerForPushNotificationsAsync,
+    savePushTokenToBackend,
+    removePushTokenFromBackend,
+} from "./src/api/notifications"
+
+// Bildirim görünümünü ayarla (uygulama açıkken de göster)
+configureNotificationHandler()
 
 const Tab = createBottomTabNavigator()
 const OrderStack = createNativeStackNavigator()
@@ -65,13 +76,54 @@ function VendorTabs({ vendor, onLogout, onVendorUpdate }: { vendor: any; onLogou
 export default function App() {
     const [isLoggedIn, setIsLoggedIn] = useState(false)
     const [vendor, setVendor] = useState<any>(null)
+    const notificationListener = useRef<Notifications.EventSubscription | null>(null)
+    const responseListener = useRef<Notifications.EventSubscription | null>(null)
 
-    const handleLogin = (vendorData: any) => {
+    // Push notification kanalını ayarla
+    useEffect(() => {
+        setupNotificationChannel()
+    }, [])
+
+    // Bildirim dinleyicilerini kur
+    useEffect(() => {
+        // Uygulama açıkken gelen bildirim
+        notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
+            console.log("📬 Bildirim alındı:", notification.request.content.title)
+        })
+
+        // Bildirime tıklandığında
+        responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
+            const data = response.notification.request.content.data
+            console.log("📬 Bildirime tıklandı:", data)
+            // Sipariş bildirimine tıklanınca Orders tab'ına yönlendirebilirsin
+        })
+
+        return () => {
+            if (notificationListener.current) {
+                notificationListener.current.remove()
+            }
+            if (responseListener.current) {
+                responseListener.current.remove()
+            }
+        }
+    }, [])
+
+    const handleLogin = async (vendorData: any) => {
         setVendor(vendorData)
         setIsLoggedIn(true)
+
+        // Push notification token'ı al ve backend'e kaydet
+        const pushToken = await registerForPushNotificationsAsync()
+        if (pushToken && vendorData?.id) {
+            await savePushTokenToBackend(vendorData.id, pushToken)
+        }
     }
 
-    const handleLogout = () => {
+    const handleLogout = async () => {
+        // Logout olurken push token'ı backend'den sil
+        if (vendor?.id) {
+            await removePushTokenFromBackend(vendor.id)
+        }
         setIsLoggedIn(false)
         setVendor(null)
     }
@@ -94,3 +146,4 @@ export default function App() {
         </>
     )
 }
+

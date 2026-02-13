@@ -14,6 +14,7 @@ const Vendor = model.define("vendor", {
     opening_hours: model.json().nullable(),
     image_url: model.text().nullable(),
     admin_user_id: model.text().nullable(),
+    push_token: model.text().nullable(),
     metadata: model.json().nullable(),
 })
 
