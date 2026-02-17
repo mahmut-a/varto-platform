@@ -3,7 +3,7 @@ module.exports = {
         name: 'varto-backend',
         script: 'node_modules/.bin/medusa',
         args: 'start',
-        cwd: '/var/www/varto-platform/apps/backend',
+        cwd: '/var/www/varto-platform/apps/backend/.medusa/server',
         env: {
             NODE_ENV: 'production',
             PORT: 9000
