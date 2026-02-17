@@ -107,12 +107,22 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
             // Vendor bilgilerini getir (push_token için)
             const vendor = await vendorService.retrieveVendor(body.vendor_id)
 
-            const itemCount = order.items?.length || body.items.length
-            const totalAmount = order.items?.reduce((sum: number, i: any) =>
-                sum + Number(i.total_price || 0), 0) || 0
+            // Fiyat ve içerik hesaplamalarını body.items'dan yap (ORM bigNumber serileştirme sorunlarından kaçınmak için)
+            const itemCount = body.items.length
+            const itemsTotal = body.items.reduce((sum: number, i: any) =>
+                sum + (Number(i.unit_price) || 0) * (Number(i.quantity) || 1), 0)
+            const deliveryFee = Number(body.delivery_fee) || 0
+            const grandTotal = itemsTotal + deliveryFee
+
+            // Ürün isimlerini listele (maks 3 ürün göster)
+            const itemNames = body.items
+                .slice(0, 3)
+                .map((i: any) => `${i.product_name} x${i.quantity || 1}`)
+                .join(", ")
+            const moreText = body.items.length > 3 ? ` +${body.items.length - 3} ürün daha` : ""
 
             const notificationTitle = "🛒 Yeni Sipariş!"
-            const notificationBody = `${itemCount} ürün · ₺${totalAmount.toFixed(2)} — Sipariş onayınızı bekliyor`
+            const notificationBody = `${itemNames}${moreText}\n💰 Toplam: ₺${grandTotal.toFixed(2)} — Sipariş onayınızı bekliyor`
 
             // Veritabanına bildirim kaydet
             await notificationService.createVartoNotifications({
@@ -135,6 +145,8 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
                     {
                         type: "new_order",
                         order_id: order.id,
+                        item_count: itemCount,
+                        total: grandTotal,
                     }
                 )
             } else {

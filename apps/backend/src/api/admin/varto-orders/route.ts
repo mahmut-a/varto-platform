@@ -10,6 +10,7 @@ export const GET = async (req: MedusaRequest, res: MedusaResponse) => {
     }
     const varto_orders = await orderExtService.listVartoOrders(filters, {
         relations: ["items"],
+        order: { created_at: "DESC" },
     })
     res.json({ varto_orders })
 }

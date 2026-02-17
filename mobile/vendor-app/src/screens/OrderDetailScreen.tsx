@@ -17,7 +17,7 @@ interface Props {
 
 export default function OrderDetailScreen({ route, navigation }: Props) {
     const { order, onStatusUpdate } = route.params
-    const [currentStatus, setCurrentStatus] = useState(order.status)
+    const [currentStatus, setCurrentStatus] = useState(order.varto_status)
     const [updating, setUpdating] = useState(false)
 
     const currentIndex = STATUS_FLOW.indexOf(currentStatus)
@@ -85,7 +85,11 @@ export default function OrderDetailScreen({ route, navigation }: Props) {
                     <Text style={s.cardTitle}>Müşteri</Text>
                     <InfoRow icon="person-outline" label="İsim" value={order.customer_name || "—"} />
                     <InfoRow icon="call-outline" label="Telefon" value={order.customer_phone || "—"} />
-                    <InfoRow icon="location-outline" label="Adres" value={order.delivery_address || "—"} />
+                    <InfoRow icon="location-outline" label="Adres" value={
+                        typeof order.delivery_address === 'object'
+                            ? (order.delivery_address?.address || JSON.stringify(order.delivery_address))
+                            : (order.delivery_address || "—")
+                    } />
                 </View>
 
                 {/* Ürünler */}
@@ -98,14 +102,24 @@ export default function OrderDetailScreen({ route, navigation }: Props) {
                             </View>
                             <View style={{ flex: 1 }}>
                                 <Text style={s.itemName}>{item.product_name || item.name || "Ürün"}</Text>
-                                {item.note && <Text style={s.itemNote}>{item.note}</Text>}
+                                {item.notes && <Text style={s.itemNote}>{item.notes}</Text>}
                             </View>
-                            <Text style={s.itemPrice}>₺{item.unit_price || item.price || 0}</Text>
+                            <Text style={s.itemPrice}>₺{Number(item.total_price || 0).toFixed(2)}</Text>
                         </View>
                     ))}
                     <View style={s.totalRow}>
+                        <Text style={s.totalLabel}>Ürünler</Text>
+                        <Text style={s.totalLabel}>₺{(order.items || []).reduce((sum: number, i: any) => sum + (Number(i.total_price) || 0), 0).toFixed(2)}</Text>
+                    </View>
+                    {Number(order.delivery_fee) > 0 && (
+                        <View style={[s.totalRow, { paddingTop: 0 }]}>
+                            <Text style={s.totalLabel}>Teslimat</Text>
+                            <Text style={s.totalLabel}>₺{Number(order.delivery_fee).toFixed(2)}</Text>
+                        </View>
+                    )}
+                    <View style={[s.totalRow, { borderTopWidth: 1, borderTopColor: colors.border.base }]}>
                         <Text style={s.totalLabel}>Toplam</Text>
-                        <Text style={s.totalValue}>₺{order.total || 0}</Text>
+                        <Text style={s.totalValue}>₺{((order.items || []).reduce((sum: number, i: any) => sum + (Number(i.total_price) || 0), 0) + (Number(order.delivery_fee) || 0)).toFixed(2)}</Text>
                     </View>
                 </View>
 
@@ -116,7 +130,7 @@ export default function OrderDetailScreen({ route, navigation }: Props) {
                         order.created_at ? new Date(order.created_at).toLocaleString("tr-TR") : "—"
                     } />
                     <InfoRow icon="bicycle-outline" label="Teslimat" value={order.delivery_type === "pickup" ? "Gel-Al" : "Kurye"} />
-                    {order.note && <InfoRow icon="chatbubble-outline" label="Not" value={order.note} />}
+                    {order.delivery_notes && <InfoRow icon="chatbubble-outline" label="Not" value={order.delivery_notes} />}
                 </View>
 
                 {/* Actions */}

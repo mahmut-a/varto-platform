@@ -45,10 +45,13 @@ export default function OrdersScreen({ navigation }: Props) {
 
     const filtered = activeFilter === "all"
         ? orders
-        : orders.filter(o => o.status === activeFilter)
+        : orders.filter(o => o.varto_status === activeFilter)
 
     const renderOrder = ({ item }: { item: any }) => {
-        const statusColor = getStatusColor(item.status)
+        const statusColor = getStatusColor(item.varto_status)
+        // Toplam fiyatı items'dan hesapla
+        const orderTotal = (item.items || []).reduce((sum: number, i: any) =>
+            sum + (Number(i.total_price) || 0), 0) + (Number(item.delivery_fee) || 0)
         return (
             <TouchableOpacity
                 style={s.orderCard}
@@ -62,7 +65,7 @@ export default function OrdersScreen({ navigation }: Props) {
                     </View>
                     <View style={[s.badge, { backgroundColor: statusColor.bg }]}>
                         <Text style={[s.badgeText, { color: statusColor.fg }]}>
-                            {getStatusLabel(item.status)}
+                            {getStatusLabel(item.varto_status)}
                         </Text>
                     </View>
                 </View>
@@ -84,7 +87,7 @@ export default function OrdersScreen({ navigation }: Props) {
                             hour: "2-digit", minute: "2-digit", day: "2-digit", month: "short",
                         }) : ""}
                     </Text>
-                    <Text style={s.orderTotal}>₺{item.total || 0}</Text>
+                    <Text style={s.orderTotal}>₺{orderTotal.toFixed(2)}</Text>
                 </View>
             </TouchableOpacity>
         )
