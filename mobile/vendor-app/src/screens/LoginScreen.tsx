@@ -13,8 +13,8 @@ interface Props {
 }
 
 export default function LoginScreen({ onLogin }: Props) {
-    const [email, setEmail] = useState("")
-    const [password, setPassword] = useState("")
+    const [email, setEmail] = useState("test@test.com")
+    const [password, setPassword] = useState("test")
     const [loading, setLoading] = useState(false)
     const [showPassword, setShowPassword] = useState(false)
 
