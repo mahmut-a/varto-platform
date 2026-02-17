@@ -23,7 +23,10 @@ cp .env .medusa/server/.env
 cp .env .medusa/server/.env.production
 mkdir -p /var/log/varto
 pm2 delete varto-backend 2>/dev/null || true
-pm2 start /var/www/varto-platform/apps/backend/ecosystem.config.js
+pm2 start /var/www/varto-platform/node_modules/@medusajs/cli/cli.js \
+    --name varto-backend \
+    --cwd /var/www/varto-platform/apps/backend/.medusa/server \
+    -- start
 pm2 save
 
 echo ""

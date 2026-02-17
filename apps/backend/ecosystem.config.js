@@ -1,7 +1,7 @@
 module.exports = {
     apps: [{
         name: 'varto-backend',
-        script: '/usr/local/bin/medusa',
+        script: '/var/www/varto-platform/node_modules/@medusajs/cli/cli.js',
         args: 'start',
         cwd: '/var/www/varto-platform/apps/backend/.medusa/server',
         env: {
