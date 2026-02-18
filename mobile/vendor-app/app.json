@@ -23,8 +23,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.zarifevren.vendorapp",
-      "googleServicesFile": "./google-services.json"
+      "package": "com.zarifevren.vendorapp"
     },
     "web": {
       "favicon": "./assets/favicon.png"
