@@ -23,7 +23,8 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.zarifevren.vendorapp"
+      "package": "com.zarifevren.vendorapp",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -45,7 +46,9 @@
           "icon": "./assets/icon.png",
           "color": "#F97316",
           "defaultChannel": "orders",
-          "sounds": []
+          "sounds": [
+            "./assets/sounds/notification_sound.wav"
+          ]
         }
       ]
     ],

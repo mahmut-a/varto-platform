@@ -7,12 +7,17 @@ import { api } from "./client"
 // ── Android bildirim kanalı oluştur ──
 export async function setupNotificationChannel() {
     if (Platform.OS === "android") {
+        // Eski kanalı sil (Android'de kanal sesi sonradan değiştirilemez)
+        try {
+            await Notifications.deleteNotificationChannelAsync("orders")
+        } catch (_) { /* ilk kurulumda kanal henüz yoktur */ }
+
         await Notifications.setNotificationChannelAsync("orders", {
             name: "Siparişler",
             importance: Notifications.AndroidImportance.MAX,
             vibrationPattern: [0, 250, 250, 250],
             lightColor: "#F97316",
-            sound: "default",
+            sound: "notification_sound",
             enableVibrate: true,
             showBadge: true,
         })

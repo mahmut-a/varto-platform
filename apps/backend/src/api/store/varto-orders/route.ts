@@ -18,7 +18,7 @@ async function sendExpoPushNotification(pushToken: string, title: string, body: 
             },
             body: JSON.stringify({
                 to: pushToken,
-                sound: "default",
+                sound: "notification_sound",
                 title,
                 body,
                 data: data || {},
@@ -107,7 +107,7 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
             // Vendor bilgilerini getir (push_token için)
             const vendor = await vendorService.retrieveVendor(body.vendor_id)
 
-            // Fiyat ve içerik hesaplamalarını body.items'dan yap (ORM bigNumber serileştirme sorunlarından kaçınmak için)
+            // Fiyat ve içerik hesaplamalarını body.items'dan yap
             const itemCount = body.items.length
             const itemsTotal = body.items.reduce((sum: number, i: any) =>
                 sum + (Number(i.unit_price) || 0) * (Number(i.quantity) || 1), 0)
@@ -124,36 +124,44 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
             const notificationTitle = "🛒 Yeni Sipariş!"
             const notificationBody = `${itemNames}${moreText}\n💰 Toplam: ₺${grandTotal.toFixed(2)} — Sipariş onayınızı bekliyor`
 
-            // Veritabanına bildirim kaydet
-            await notificationService.createVartoNotifications({
-                title: notificationTitle,
-                message: notificationBody,
-                type: "order",
-                recipient_type: "vendor",
-                recipient_id: body.vendor_id,
-                is_read: false,
-                reference_id: order.id,
-                reference_type: "varto_order",
-            })
-
-            // Expo Push Notification gönder
+            // Expo Push Notification gönder (DB kaydından BAĞIMSIZ)
             if (vendor.push_token) {
-                await sendExpoPushNotification(
-                    vendor.push_token,
-                    notificationTitle,
-                    notificationBody,
-                    {
-                        type: "new_order",
-                        order_id: order.id,
-                        item_count: itemCount,
-                        total: grandTotal,
-                    }
-                )
+                try {
+                    await sendExpoPushNotification(
+                        vendor.push_token,
+                        notificationTitle,
+                        notificationBody,
+                        {
+                            type: "new_order",
+                            order_id: order.id,
+                            item_count: itemCount,
+                            total: grandTotal,
+                        }
+                    )
+                } catch (pushErr: any) {
+                    console.error("Push notification gönderme hatası:", pushErr?.message || pushErr)
+                }
             } else {
-                console.log(`Vendor ${body.vendor_id} için push_token bulunamadı, bildirim veritabanına kaydedildi.`)
+                console.log(`Vendor ${body.vendor_id} için push_token bulunamadı`)
+            }
+
+            // Veritabanına bildirim kaydet (Push gönderiminden BAĞIMSIZ)
+            try {
+                await notificationService.createVartoNotifications({
+                    title: notificationTitle,
+                    message: notificationBody,
+                    type: "order",
+                    recipient_type: "vendor",
+                    recipient_id: body.vendor_id,
+                    is_read: false,
+                    reference_id: order.id,
+                    reference_type: "varto_order",
+                })
+            } catch (dbErr: any) {
+                console.error("Bildirim DB kayıt hatası:", dbErr?.message || dbErr)
             }
         } catch (notifErr: any) {
-            // Bildirim hatası sipariş oluşturmayı etkilemez
+            // Genel hata — sipariş oluşturmayı etkilemez
             console.error("Bildirim gönderme hatası:", notifErr?.message || notifErr)
         }
 
