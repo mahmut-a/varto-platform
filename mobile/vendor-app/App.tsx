@@ -20,7 +20,7 @@ import {
     removePushTokenFromBackend,
 } from "./src/api/notifications"
 
-// Bildirim görünümünü ayarla (uygulama açıkken de göster)
+// Bildirim görünümünü ayarla (uygulama açıkken de göster + ses çal)
 configureNotificationHandler()
 
 const Tab = createBottomTabNavigator()
@@ -76,13 +76,35 @@ function VendorTabs({ vendor, onLogout, onVendorUpdate }: { vendor: any; onLogou
 export default function App() {
     const [isLoggedIn, setIsLoggedIn] = useState(false)
     const [vendor, setVendor] = useState<any>(null)
+    const navigationRef = useRef<NavigationContainerRef<any>>(null)
+    const [isNavigationReady, setIsNavigationReady] = useState(false)
     const notificationListener = useRef<Notifications.EventSubscription | null>(null)
     const responseListener = useRef<Notifications.EventSubscription | null>(null)
+    // Bekleyen navigation (login olmadan önce bildirime tıklanırsa)
+    const pendingNavigation = useRef<{ orderId: string } | null>(null)
 
     // Push notification kanalını ayarla
     useEffect(() => {
         setupNotificationChannel()
     }, [])
+
+    // Bildirime tıklanınca OrderDetail'e yönlendir
+    const navigateToOrder = (orderId: string) => {
+        if (!isLoggedIn || !isNavigationReady || !navigationRef.current) {
+            // Henüz login olmamış veya navigation hazır değil, beklet
+            pendingNavigation.current = { orderId }
+            return
+        }
+        try {
+            // Sipariş tab'ına geç, ardından OrderDetail'e git
+            navigationRef.current.navigate("Sipariş", {
+                screen: "OrderDetail",
+                params: { orderId },
+            })
+        } catch (err) {
+            console.error("Navigation hatası:", err)
+        }
+    }
 
     // Bildirim dinleyicilerini kur
     useEffect(() => {
@@ -95,7 +117,20 @@ export default function App() {
         responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
             const data = response.notification.request.content.data
             console.log("📬 Bildirime tıklandı:", data)
-            // Sipariş bildirimine tıklanınca Orders tab'ına yönlendirebilirsin
+
+            if (data?.type === "new_order" && data?.order_id) {
+                navigateToOrder(data.order_id as string)
+            }
+        })
+
+        // Uygulama kapalıyken bildirime tıklanarak açıldıysa
+        Notifications.getLastNotificationResponseAsync().then(response => {
+            if (response) {
+                const data = response.notification.request.content.data
+                if (data?.type === "new_order" && data?.order_id) {
+                    navigateToOrder(data.order_id as string)
+                }
+            }
         })
 
         return () => {
@@ -106,7 +141,17 @@ export default function App() {
                 responseListener.current.remove()
             }
         }
-    }, [])
+    }, [isLoggedIn, isNavigationReady])
+
+    // Bekleyen navigation'ı işle (login olduktan sonra)
+    useEffect(() => {
+        if (isLoggedIn && isNavigationReady && pendingNavigation.current) {
+            const { orderId } = pendingNavigation.current
+            pendingNavigation.current = null
+            // Küçük bir gecikme ile navigate et (navigation tamamen hazır olsun)
+            setTimeout(() => navigateToOrder(orderId), 500)
+        }
+    }, [isLoggedIn, isNavigationReady])
 
     const handleLogin = async (vendorData: any) => {
         setVendor(vendorData)
@@ -140,10 +185,12 @@ export default function App() {
     return (
         <>
             <StatusBar style="dark" />
-            <NavigationContainer>
+            <NavigationContainer
+                ref={navigationRef}
+                onReady={() => setIsNavigationReady(true)}
+            >
                 <VendorTabs vendor={vendor} onLogout={handleLogout} onVendorUpdate={setVendor} />
             </NavigationContainer>
         </>
     )
 }
-

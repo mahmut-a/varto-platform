@@ -86,6 +86,11 @@ export const getVendorOrders = async (vendorId?: string) => {
     return data.varto_orders
 }
 
+export const getOrderById = async (orderId: string) => {
+    const { data } = await api.get(`/admin/varto-orders/${orderId}`)
+    return data.varto_order
+}
+
 export const updateOrderStatus = async (orderId: string, status: string) => {
     const { data } = await api.post(`/admin/varto-orders/${orderId}`, { varto_status: status })
     return data.varto_order

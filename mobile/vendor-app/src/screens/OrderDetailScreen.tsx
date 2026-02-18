@@ -1,12 +1,12 @@
-import React, { useState } from "react"
+import React, { useState, useEffect, useCallback } from "react"
 import {
     View, Text, StyleSheet, ScrollView, TouchableOpacity,
-    Alert, ActivityIndicator,
+    Alert, ActivityIndicator, Linking,
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { Ionicons } from "@expo/vector-icons"
 import { colors, spacing, radius, typography } from "../theme/tokens"
-import { updateOrderStatus } from "../api/client"
+import { updateOrderStatus, getOrderById } from "../api/client"
 
 const STATUS_FLOW = ["pending", "confirmed", "preparing", "ready", "delivered"]
 
@@ -16,9 +16,37 @@ interface Props {
 }
 
 export default function OrderDetailScreen({ route, navigation }: Props) {
-    const { order, onStatusUpdate } = route.params
-    const [currentStatus, setCurrentStatus] = useState(order.varto_status)
+    const { order: initialOrder, orderId: paramOrderId } = route.params || {}
+
+    const [order, setOrder] = useState<any>(initialOrder || null)
+    const [loading, setLoading] = useState(!initialOrder)
+    const [currentStatus, setCurrentStatus] = useState(initialOrder?.varto_status || "pending")
     const [updating, setUpdating] = useState(false)
+
+    // Order ID ile API'den siparişi getir (bildirimden gelince)
+    const fetchOrder = useCallback(async () => {
+        const oid = paramOrderId || initialOrder?.id
+        if (!oid) return
+        try {
+            setLoading(true)
+            const fetched = await getOrderById(oid)
+            setOrder(fetched)
+            setCurrentStatus(fetched.varto_status)
+        } catch (err) {
+            console.error("Sipariş getirme hatası:", err)
+            Alert.alert("Hata", "Sipariş yüklenemedi", [
+                { text: "Geri Dön", onPress: () => navigation.goBack() },
+            ])
+        } finally {
+            setLoading(false)
+        }
+    }, [paramOrderId, initialOrder?.id])
+
+    useEffect(() => {
+        if (!initialOrder && paramOrderId) {
+            fetchOrder()
+        }
+    }, [fetchOrder])
 
     const currentIndex = STATUS_FLOW.indexOf(currentStatus)
     const nextStatus = currentIndex >= 0 && currentIndex < STATUS_FLOW.length - 1
@@ -26,11 +54,12 @@ export default function OrderDetailScreen({ route, navigation }: Props) {
         : null
 
     const handleStatusUpdate = async (newStatus: string) => {
+        if (!order) return
         setUpdating(true)
         try {
-            await updateOrderStatus(order.id, newStatus)
+            const updated = await updateOrderStatus(order.id, newStatus)
             setCurrentStatus(newStatus)
-            onStatusUpdate?.()
+            setOrder({ ...order, varto_status: newStatus })
             Alert.alert("Başarılı", `Sipariş durumu güncellendi: ${getStatusLabel(newStatus)}`)
         } catch (err) {
             Alert.alert("Hata", "Durum güncellenemedi")
@@ -46,6 +75,43 @@ export default function OrderDetailScreen({ route, navigation }: Props) {
         ])
     }
 
+    const handleCall = (phone: string) => {
+        Linking.openURL(`tel:${phone}`)
+    }
+
+    // Loading state
+    if (loading || !order) {
+        return (
+            <SafeAreaView style={s.container} edges={["top"]}>
+                <View style={s.header}>
+                    <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
+                        <Ionicons name="arrow-back" size={22} color={colors.fg.base} />
+                    </TouchableOpacity>
+                    <Text style={s.headerTitle}>Sipariş Detayı</Text>
+                    <View style={{ width: 40 }} />
+                </View>
+                <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+                    <ActivityIndicator size="large" color={colors.interactive} />
+                    <Text style={[s.emptyText, { marginTop: spacing.md }]}>Sipariş yükleniyor...</Text>
+                </View>
+            </SafeAreaView>
+        )
+    }
+
+    const deliveryAddress = typeof order.delivery_address === "object"
+        ? (order.delivery_address?.address || JSON.stringify(order.delivery_address))
+        : (order.delivery_address || "—")
+
+    const deliveryPhone = typeof order.delivery_address === "object"
+        ? order.delivery_address?.phone
+        : null
+
+    const itemsTotal = (order.items || []).reduce(
+        (sum: number, i: any) => sum + (Number(i.total_price) || 0), 0
+    )
+    const deliveryFee = Number(order.delivery_fee) || 0
+    const grandTotal = itemsTotal + deliveryFee
+
     return (
         <SafeAreaView style={s.container} edges={["top"]}>
             {/* Header */}
@@ -54,7 +120,9 @@ export default function OrderDetailScreen({ route, navigation }: Props) {
                     <Ionicons name="arrow-back" size={22} color={colors.fg.base} />
                 </TouchableOpacity>
                 <Text style={s.headerTitle}>Sipariş #{order.id?.slice(-6)}</Text>
-                <View style={{ width: 40 }} />
+                <TouchableOpacity onPress={fetchOrder} style={s.backBtn}>
+                    <Ionicons name="refresh-outline" size={22} color={colors.fg.base} />
+                </TouchableOpacity>
             </View>
 
             <ScrollView contentContainerStyle={s.scroll}>
@@ -84,42 +152,57 @@ export default function OrderDetailScreen({ route, navigation }: Props) {
                 <View style={s.card}>
                     <Text style={s.cardTitle}>Müşteri</Text>
                     <InfoRow icon="person-outline" label="İsim" value={order.customer_name || "—"} />
-                    <InfoRow icon="call-outline" label="Telefon" value={order.customer_phone || "—"} />
-                    <InfoRow icon="location-outline" label="Adres" value={
-                        typeof order.delivery_address === 'object'
-                            ? (order.delivery_address?.address || JSON.stringify(order.delivery_address))
-                            : (order.delivery_address || "—")
-                    } />
+                    <TouchableOpacity
+                        onPress={() => order.customer_phone && handleCall(order.customer_phone)}
+                        disabled={!order.customer_phone}
+                    >
+                        <InfoRow
+                            icon="call-outline"
+                            label="Telefon"
+                            value={order.customer_phone || "—"}
+                            highlight={!!order.customer_phone}
+                        />
+                    </TouchableOpacity>
+                    <InfoRow icon="location-outline" label="Adres" value={deliveryAddress} />
+                    {deliveryPhone && deliveryPhone !== order.customer_phone && (
+                        <TouchableOpacity onPress={() => handleCall(deliveryPhone)}>
+                            <InfoRow icon="call-outline" label="Tel (Teslimat)" value={deliveryPhone} highlight />
+                        </TouchableOpacity>
+                    )}
                 </View>
 
                 {/* Ürünler */}
                 <View style={s.card}>
-                    <Text style={s.cardTitle}>Ürünler</Text>
+                    <Text style={s.cardTitle}>Ürünler ({(order.items || []).length} kalem)</Text>
                     {(order.items || []).map((item: any, i: number) => (
                         <View key={i} style={s.itemRow}>
                             <View style={s.itemQty}>
                                 <Text style={s.itemQtyText}>{item.quantity || 1}x</Text>
                             </View>
                             <View style={{ flex: 1 }}>
-                                <Text style={s.itemName}>{item.product_name || item.name || "Ürün"}</Text>
+                                <Text style={s.itemName}>{item.product_name || "Ürün"}</Text>
                                 {item.notes && <Text style={s.itemNote}>{item.notes}</Text>}
                             </View>
                             <Text style={s.itemPrice}>₺{Number(item.total_price || 0).toFixed(2)}</Text>
                         </View>
                     ))}
-                    <View style={s.totalRow}>
-                        <Text style={s.totalLabel}>Ürünler</Text>
-                        <Text style={s.totalLabel}>₺{(order.items || []).reduce((sum: number, i: any) => sum + (Number(i.total_price) || 0), 0).toFixed(2)}</Text>
-                    </View>
-                    {Number(order.delivery_fee) > 0 && (
-                        <View style={[s.totalRow, { paddingTop: 0 }]}>
-                            <Text style={s.totalLabel}>Teslimat</Text>
-                            <Text style={s.totalLabel}>₺{Number(order.delivery_fee).toFixed(2)}</Text>
+
+                    {/* Fiyat Özeti */}
+                    <View style={s.summarySection}>
+                        <View style={s.summaryRow}>
+                            <Text style={s.summaryLabel}>Ürünler Toplamı</Text>
+                            <Text style={s.summaryValue}>₺{itemsTotal.toFixed(2)}</Text>
                         </View>
-                    )}
-                    <View style={[s.totalRow, { borderTopWidth: 1, borderTopColor: colors.border.base }]}>
-                        <Text style={s.totalLabel}>Toplam</Text>
-                        <Text style={s.totalValue}>₺{((order.items || []).reduce((sum: number, i: any) => sum + (Number(i.total_price) || 0), 0) + (Number(order.delivery_fee) || 0)).toFixed(2)}</Text>
+                        {deliveryFee > 0 && (
+                            <View style={s.summaryRow}>
+                                <Text style={s.summaryLabel}>Teslimat Ücreti</Text>
+                                <Text style={s.summaryValue}>₺{deliveryFee.toFixed(2)}</Text>
+                            </View>
+                        )}
+                        <View style={[s.summaryRow, s.grandTotalRow]}>
+                            <Text style={s.grandTotalLabel}>Toplam</Text>
+                            <Text style={s.grandTotalValue}>₺{grandTotal.toFixed(2)}</Text>
+                        </View>
                     </View>
                 </View>
 
@@ -129,7 +212,10 @@ export default function OrderDetailScreen({ route, navigation }: Props) {
                     <InfoRow icon="time-outline" label="Tarih" value={
                         order.created_at ? new Date(order.created_at).toLocaleString("tr-TR") : "—"
                     } />
-                    <InfoRow icon="bicycle-outline" label="Teslimat" value={order.delivery_type === "pickup" ? "Gel-Al" : "Kurye"} />
+                    <InfoRow icon="card-outline" label="Ödeme" value={
+                        order.payment_method === "iban" ? "IBAN / Havale" : (order.payment_method || "—")
+                    } />
+                    {order.iban_info && <InfoRow icon="wallet-outline" label="IBAN" value={order.iban_info} />}
                     {order.delivery_notes && <InfoRow icon="chatbubble-outline" label="Not" value={order.delivery_notes} />}
                 </View>
 
@@ -159,18 +245,32 @@ export default function OrderDetailScreen({ route, navigation }: Props) {
                             <Text style={s.cancelBtnText}>Siparişi İptal Et</Text>
                         </TouchableOpacity>
                     )}
+
+                    {currentStatus === "delivered" && (
+                        <View style={s.completedBanner}>
+                            <Ionicons name="checkmark-circle" size={24} color={colors.tag.green.fg} />
+                            <Text style={s.completedText}>Sipariş teslim edildi ✓</Text>
+                        </View>
+                    )}
+
+                    {currentStatus === "cancelled" && (
+                        <View style={[s.completedBanner, { backgroundColor: colors.tag.red.bg }]}>
+                            <Ionicons name="close-circle" size={24} color={colors.tag.red.fg} />
+                            <Text style={[s.completedText, { color: colors.tag.red.fg }]}>Sipariş iptal edildi</Text>
+                        </View>
+                    )}
                 </View>
             </ScrollView>
         </SafeAreaView>
     )
 }
 
-function InfoRow({ icon, label, value }: { icon: any; label: string; value: string }) {
+function InfoRow({ icon, label, value, highlight }: { icon: any; label: string; value: string; highlight?: boolean }) {
     return (
         <View style={s.infoRow}>
-            <Ionicons name={icon} size={16} color={colors.fg.muted} />
+            <Ionicons name={icon} size={16} color={highlight ? colors.interactive : colors.fg.muted} />
             <Text style={s.infoLabel}>{label}</Text>
-            <Text style={s.infoValue}>{value}</Text>
+            <Text style={[s.infoValue, highlight && { color: colors.interactive, fontWeight: "600" }]}>{value}</Text>
         </View>
     )
 }
@@ -234,7 +334,7 @@ const s = StyleSheet.create({
         flexDirection: "row", alignItems: "center", gap: spacing.sm,
         paddingVertical: spacing.xs,
     },
-    infoLabel: { ...typography.small, width: 60 },
+    infoLabel: { ...typography.small, width: 70, color: colors.fg.muted },
     infoValue: { ...typography.body, flex: 1, color: colors.fg.base },
     itemRow: {
         flexDirection: "row", alignItems: "center", gap: spacing.md,
@@ -248,14 +348,24 @@ const s = StyleSheet.create({
     },
     itemQtyText: { ...typography.label, fontWeight: "700" },
     itemName: { ...typography.body, color: colors.fg.base },
-    itemNote: { ...typography.caption, fontStyle: "italic" },
+    itemNote: { ...typography.caption, fontStyle: "italic", color: colors.fg.muted },
     itemPrice: { ...typography.h3 },
-    totalRow: {
-        flexDirection: "row", justifyContent: "space-between", alignItems: "center",
-        paddingTop: spacing.md, marginTop: spacing.sm,
+    summarySection: {
+        marginTop: spacing.md, paddingTop: spacing.md,
+        borderTopWidth: 1, borderTopColor: colors.border.base,
     },
-    totalLabel: { ...typography.h3 },
-    totalValue: { ...typography.h1, color: colors.interactive },
+    summaryRow: {
+        flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+        paddingVertical: 4,
+    },
+    summaryLabel: { ...typography.body, color: colors.fg.muted },
+    summaryValue: { ...typography.body, color: colors.fg.base },
+    grandTotalRow: {
+        marginTop: spacing.sm, paddingTop: spacing.sm,
+        borderTopWidth: 1, borderTopColor: colors.border.base,
+    },
+    grandTotalLabel: { ...typography.h3 },
+    grandTotalValue: { ...typography.h1, color: colors.interactive },
     actions: { gap: spacing.md, marginTop: spacing.md },
     primaryBtn: {
         flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm,
@@ -269,4 +379,11 @@ const s = StyleSheet.create({
         height: 48,
     },
     cancelBtnText: { fontSize: 14, fontWeight: "600", color: colors.tag.red.fg },
+    completedBanner: {
+        flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm,
+        backgroundColor: colors.tag.green.bg, borderRadius: radius.md,
+        height: 48,
+    },
+    completedText: { fontSize: 14, fontWeight: "600", color: colors.tag.green.fg },
+    emptyText: { ...typography.body, color: colors.fg.muted },
 })

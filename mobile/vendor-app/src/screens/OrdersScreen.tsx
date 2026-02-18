@@ -56,7 +56,7 @@ export default function OrdersScreen({ navigation }: Props) {
             <TouchableOpacity
                 style={s.orderCard}
                 activeOpacity={0.7}
-                onPress={() => navigation.navigate("OrderDetail", { order: item, onStatusUpdate: loadOrders })}
+                onPress={() => navigation.navigate("OrderDetail", { order: item })}
             >
                 <View style={s.orderHeader}>
                     <View style={s.orderIdRow}>
