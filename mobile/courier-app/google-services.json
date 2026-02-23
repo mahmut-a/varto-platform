@@ -7,6 +7,25 @@
   "client": [
     {
       "client_info": {
+        "mobilesdk_app_id": "1:843402753576:android:b739b289a2c26161d2a71d",
+        "android_client_info": {
+          "package_name": "com.zarifevren.courierapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAoLHHPqTlL6K-mR9KR2D5Gj8XV7JICO2A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:843402753576:android:69d75273c90204b2d2a71d",
         "android_client_info": {
           "package_name": "com.zarifevren.vendorapp"

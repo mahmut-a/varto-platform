@@ -16,9 +16,9 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
         const { password, ...courierData } = req.body as any
 
         // Validasyon
-        if (!courierData.name || !courierData.phone || !courierData.vehicle_type) {
+        if (!courierData.name || !courierData.phone) {
             return res.status(400).json({
-                message: "Zorunlu alanlar: name, phone, vehicle_type",
+                message: "Zorunlu alanlar: name, phone",
             })
         }
 
@@ -43,7 +43,7 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
                 })
 
                 if (authResult.error) {
-                    console.error("Auth register hatası:", authResult.error)
+                    console.error("Courier auth register hatası:", authResult.error)
                 } else if (authResult.authIdentity) {
                     // User ile auth identity arasında bağlantı kur
                     await authService.updateAuthIdentities({
@@ -55,6 +55,7 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
                 }
             } catch (authErr: any) {
                 console.error("Courier auth user oluşturma hatası:", authErr?.message || authErr)
+                // Auth user oluşturulamazsa yine de courier oluştur
             }
         }
 

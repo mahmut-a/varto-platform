@@ -27,7 +27,7 @@ const VEHICLES = [
 ]
 const VEHICLE_MAP = Object.fromEntries(VEHICLES.map((v) => [v.value, v.label]))
 
-const emptyForm = { name: "", phone: "", email: "", vehicle_type: "motorcycle", is_active: true, is_available: true }
+const emptyForm = { name: "", phone: "", email: "", password: "", vehicle_type: "motorcycle", is_active: true, is_available: true }
 
 export default function CouriersScreen() {
     const [couriers, setCouriers] = useState<any[]>([])
@@ -49,16 +49,21 @@ export default function CouriersScreen() {
     const openCreate = () => { setEditing(null); setForm({ ...emptyForm }); setModalVisible(true) }
     const openEdit = (c: any) => {
         setEditing(c)
-        setForm({ name: c.name, phone: c.phone || "", email: c.email || "", vehicle_type: c.vehicle_type || "motorcycle", is_active: c.is_active ?? true, is_available: c.is_available ?? true })
+        setForm({ name: c.name, phone: c.phone || "", email: c.email || "", password: "", vehicle_type: c.vehicle_type || "motorcycle", is_active: c.is_active ?? true, is_available: c.is_available ?? true })
         setModalVisible(true)
     }
 
     const handleSave = async () => {
         if (!form.name || !form.phone) { Alert.alert("Hata", "İsim ve Telefon zorunludur."); return }
+        if (!editing && form.email && !form.password) { Alert.alert("Hata", "Yeni kurye için e-posta girilmişse şifre de zorunludur."); return }
         setSaving(true)
         try {
-            if (editing) await updateCourier(editing.id, form)
-            else await createCourier(form)
+            if (editing) {
+                const { password: _, ...updateData } = form
+                await updateCourier(editing.id, updateData)
+            } else {
+                await createCourier(form)
+            }
             setModalVisible(false)
             fetchCouriers()
         } catch (e: any) {
@@ -173,7 +178,14 @@ export default function CouriersScreen() {
                         <TextInput style={styles.input} value={form.phone} onChangeText={(v) => setForm({ ...form, phone: v })} placeholder="05XX XXX XXXX" keyboardType="phone-pad" placeholderTextColor={colors.fg.muted} />
 
                         <Text style={styles.inputLabel}>E-posta</Text>
-                        <TextInput style={styles.input} value={form.email} onChangeText={(v) => setForm({ ...form, email: v })} placeholder="kurye@example.com" keyboardType="email-address" placeholderTextColor={colors.fg.muted} />
+                        <TextInput style={styles.input} value={form.email} onChangeText={(v) => setForm({ ...form, email: v })} placeholder="kurye@example.com" keyboardType="email-address" autoCapitalize="none" placeholderTextColor={colors.fg.muted} />
+
+                        {!editing && (
+                            <>
+                                <Text style={styles.inputLabel}>Şifre {form.email ? '*' : ''}</Text>
+                                <TextInput style={styles.input} value={form.password} onChangeText={(v) => setForm({ ...form, password: v })} placeholder="Giriş şifresi" secureTextEntry placeholderTextColor={colors.fg.muted} />
+                            </>
+                        )}
 
                         <Text style={styles.inputLabel}>Araç Tipi</Text>
                         <TouchableOpacity style={styles.input} onPress={() => setVehiclePickerOpen(true)}>

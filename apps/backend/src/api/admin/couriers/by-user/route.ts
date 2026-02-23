@@ -3,7 +3,7 @@ import { COURIER_MODULE } from "../../../../modules/courier"
 import CourierModuleService from "../../../../modules/courier/service"
 
 /**
- * GET /admin/couriers/by-user — Login olan admin user'ın bağlı olduğu courier'ı döner
+ * GET /admin/couriers/by-user — Login olan user'ın bağlı olduğu courier'ı döner
  * Courier App login akışında kullanılır
  */
 export const GET = async (req: MedusaRequest, res: MedusaResponse) => {
