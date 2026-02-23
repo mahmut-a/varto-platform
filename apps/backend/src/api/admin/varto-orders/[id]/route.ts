@@ -1,6 +1,41 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ORDER_EXTENSION_MODULE } from "../../../../modules/order-extension"
 import OrderExtensionModuleService from "../../../../modules/order-extension/service"
+import { COURIER_MODULE } from "../../../../modules/courier"
+import CourierModuleService from "../../../../modules/courier/service"
+import { VENDOR_MODULE } from "../../../../modules/vendor"
+import VendorModuleService from "../../../../modules/vendor/service"
+import { VARTO_NOTIFICATION_MODULE } from "../../../../modules/varto-notification"
+import VartoNotificationModuleService from "../../../../modules/varto-notification/service"
+
+// ── Expo Push Notification gönderici ──
+async function sendExpoPushNotification(pushToken: string, title: string, body: string, data?: any) {
+    try {
+        const response = await fetch("https://exp.host/--/api/v2/push/send", {
+            method: "POST",
+            headers: {
+                "Accept": "application/json",
+                "Accept-Encoding": "gzip, deflate",
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                to: pushToken,
+                sound: "notification_sound",
+                title,
+                body,
+                data: data || {},
+                priority: "high",
+                channelId: "orders",
+            }),
+        })
+        const result = await response.json()
+        console.log("Expo push notification gönderildi:", result)
+        return result
+    } catch (err: any) {
+        console.error("Expo push notification hatası:", err?.message || err)
+        return null
+    }
+}
 
 export const GET = async (req: MedusaRequest, res: MedusaResponse) => {
     try {
@@ -20,6 +55,12 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
         const orderExtService: OrderExtensionModuleService = req.scope.resolve(ORDER_EXTENSION_MODULE)
         const body = req.body as any
 
+        // Mevcut siparişi al (önceki durumu kontrol etmek için)
+        const existingOrder = await orderExtService.retrieveVartoOrder(req.params.id, {
+            relations: ["items"],
+        })
+        const previousStatus = existingOrder?.varto_status
+
         // Sadece izin verilen alanları güncelle
         const updateData: any = { id: req.params.id }
         if (body.varto_status) updateData.varto_status = body.varto_status
@@ -34,6 +75,94 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
         const updated = await orderExtService.retrieveVartoOrder(req.params.id, {
             relations: ["items"],
         })
+
+        // ── Sipariş onaylandığında kuryeye bildirim gönder ──
+        if (body.varto_status === "confirmed" && previousStatus !== "confirmed") {
+            try {
+                const courierService: CourierModuleService = req.scope.resolve(COURIER_MODULE)
+                const vendorService: VendorModuleService = req.scope.resolve(VENDOR_MODULE)
+                const notificationService: VartoNotificationModuleService = req.scope.resolve(VARTO_NOTIFICATION_MODULE)
+
+                // Vendor bilgisini al
+                let vendorName = "İşletme"
+                try {
+                    const vendor = await vendorService.retrieveVendor(updated.vendor_id)
+                    vendorName = vendor.name || "İşletme"
+                } catch (_) { }
+
+                // Fiyat hesapla
+                const itemsTotal = (updated.items || []).reduce(
+                    (sum: number, i: any) => sum + (Number(i.total_price) || 0), 0
+                )
+                const deliveryFee = Number(updated.delivery_fee) || 0
+                const grandTotal = itemsTotal + deliveryFee
+                const itemCount = (updated.items || []).length
+
+                // Ürün isimleri
+                const itemNames = (updated.items || [])
+                    .slice(0, 3)
+                    .map((i: any) => `${i.product_name} x${i.quantity || 1}`)
+                    .join(", ")
+                const moreText = itemCount > 3 ? ` +${itemCount - 3} ürün daha` : ""
+
+                // Teslimat adresi
+                const addr = typeof updated.delivery_address === "object"
+                    ? (updated.delivery_address?.address || "")
+                    : (updated.delivery_address || "")
+                const shortAddr = addr.length > 50 ? addr.substring(0, 50) + "..." : addr
+
+                const notificationTitle = "🚀 Yeni Teslimat!"
+                const notificationBody = `${vendorName} — ${itemNames}${moreText}\n📍 ${shortAddr}\n💰 Toplam: ₺${grandTotal.toFixed(2)}`
+
+                // Tüm aktif kuryeları al
+                const couriers = await courierService.listCouriers({
+                    is_active: true,
+                })
+
+                // Her kuryeye bildirim gönder
+                for (const courier of couriers) {
+                    // Push notification gönder
+                    if (courier.push_token) {
+                        try {
+                            await sendExpoPushNotification(
+                                courier.push_token,
+                                notificationTitle,
+                                notificationBody,
+                                {
+                                    type: "order_confirmed",
+                                    order_id: updated.id,
+                                    vendor_name: vendorName,
+                                    item_count: itemCount,
+                                    total: grandTotal,
+                                }
+                            )
+                        } catch (pushErr: any) {
+                            console.error(`Courier ${courier.id} push hatası:`, pushErr?.message || pushErr)
+                        }
+                    }
+
+                    // DB'ye bildirim kaydet
+                    try {
+                        await notificationService.createVartoNotifications({
+                            title: notificationTitle,
+                            message: notificationBody,
+                            type: "order",
+                            recipient_type: "courier",
+                            recipient_id: courier.id,
+                            is_read: false,
+                            reference_id: updated.id,
+                            reference_type: "varto_order",
+                        })
+                    } catch (dbErr: any) {
+                        console.error(`Courier ${courier.id} bildirim DB hatası:`, dbErr?.message || dbErr)
+                    }
+                }
+
+                console.log(`Sipariş ${updated.id} onaylandı, ${couriers.length} kuryeye bildirim gönderildi`)
+            } catch (notifErr: any) {
+                console.error("Kurye bildirim hatası:", notifErr?.message || notifErr)
+            }
+        }
 
         res.json({ varto_order: updated })
     } catch (err: any) {

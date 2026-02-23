@@ -22,10 +22,10 @@ Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name
 ```
 - Bu bir kere yapılır, kalıcıdır
 
-### 4. New Architecture Dikkat
-- Windows'ta proje yolu uzunsa `newArchEnabled=true` CMake 260 karakter hatasına sebep olur
-- Çözüm 1: `newArchEnabled=false` yaparak CMake build'ini devre dışı bırak
-- Çözüm 2: Projeyi kısa yola taşı (ör: `C:\dev\app`)
+### 4. Proje Lokasyonu
+- Proje `C:\App` altında olmalı (kısa path, 260 karakter limiti sorununu önler)
+- Mobile uygulamalar: `C:\App\mobile\<app-name>`
+- `newArchEnabled=true` tüm projelerde aktif
 
 ---
 
@@ -59,7 +59,7 @@ buildFeatures {
 ### Adım 5: Release APK Build
 // turbo
 ```powershell
-$env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"; $env:ANDROID_HOME = "C:\Users\Evren\AppData\Local\Android\Sdk"; Set-Location "<PROJE_YOLU>\android"; .\gradlew.bat app:assembleRelease
+$env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"; $env:ANDROID_HOME = "C:\Users\Evren\AppData\Local\Android\Sdk"; Set-Location "C:\App\mobile\<APP_NAME>\android"; .\gradlew.bat app:assembleRelease
 ```
 
 ### Adım 6: APK dosyasını bul
@@ -85,8 +85,8 @@ android/app/build/outputs/apk/release/app-release.apk
 ## Sorun Giderme
 
 ### "Filename longer than 260 characters"
-- `newArchEnabled=false` yap (gradle.properties + app.json)
-- Veya projeyi `C:\dev\app` gibi kısa yola taşı
+- Proje zaten `C:\App` altında olduğundan bu sorun oluşmamalı
+- Long Path Registry ayarının yapıldığından emin ol
 
 ### "Unresolved reference 'R'" veya "'BuildConfig'"
 - `buildFeatures { buildConfig = true }` ekle

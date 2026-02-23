@@ -3,7 +3,16 @@
 
 import { Appearance } from "react-native"
 
-const isDark = () => Appearance.getColorScheme() === "dark"
+let _overrideScheme: "light" | "dark" | null = null
+
+export const setThemeScheme = (scheme: "light" | "dark" | null) => {
+    _overrideScheme = scheme
+}
+
+const isDark = (scheme?: "light" | "dark") => {
+    const s = scheme || _overrideScheme || Appearance.getColorScheme()
+    return s === "dark"
+}
 
 // Medusa UI Kit Colors — Light & Dark
 const light = {

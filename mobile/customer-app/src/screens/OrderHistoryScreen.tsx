@@ -7,16 +7,17 @@ import {
     TouchableOpacity,
     ActivityIndicator,
     RefreshControl,
-    useColorScheme,
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import { getColors, getTypography, spacing, radius, statusColors, statusLabels } from "../theme/tokens"
 import { getCustomerOrders } from "../api/client"
+import { useTheme } from "../context/ThemeContext"
 
-export default function OrderHistoryScreen({ customer, onViewOrder }: {
+export default function OrderHistoryScreen({ navigation, customer }: {
+    navigation: any
     customer: any
-    onViewOrder?: (order: any) => void
 }) {
+    const { colorScheme } = useTheme()
     const c = getColors()
     const t = getTypography()
 
@@ -52,6 +53,10 @@ export default function OrderHistoryScreen({ customer, onViewOrder }: {
         return items.reduce((sum: number, item: any) => sum + (Number(item.total_price) || 0), 0).toFixed(2).replace(".", ",")
     }
 
+    const handleViewOrder = (order: any) => {
+        navigation.navigate("OrderTrackingDetail", { orderId: order.id })
+    }
+
     const renderOrder = ({ item }: { item: any }) => {
         const status = item.varto_status || "pending"
         const sc = statusColors[status as keyof typeof statusColors] || statusColors.pending
@@ -59,7 +64,7 @@ export default function OrderHistoryScreen({ customer, onViewOrder }: {
         return (
             <TouchableOpacity
                 style={[styles.card, { backgroundColor: c.bg.component, borderColor: c.border.base }]}
-                onPress={() => onViewOrder?.(item)}
+                onPress={() => handleViewOrder(item)}
                 activeOpacity={0.7}
             >
                 <View style={styles.cardHeader}>

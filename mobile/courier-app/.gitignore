@@ -1,0 +1,10 @@
+# OSX
+.DS_Store
+
+# Expo
+.expo/
+dist/
+web-build/
+
+# Dependency directories
+node_modules/

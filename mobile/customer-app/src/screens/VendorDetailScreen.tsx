@@ -1,17 +1,19 @@
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useState, useRef } from "react"
 import {
     View,
     Text,
     StyleSheet,
     ScrollView,
     TouchableOpacity,
-    useColorScheme,
     ActivityIndicator,
     RefreshControl,
+    Animated,
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import { getColors, getTypography, spacing, radius, shadow } from "../theme/tokens"
 import { getVendorProducts } from "../api/client"
+import { useCart } from "../context/CartContext"
+import { useTheme } from "../context/ThemeContext"
 
 const CATEGORY_MAP: Record<string, { label: string; icon: string }> = {
     restaurant: { label: "Restoran", icon: "restaurant-outline" },
@@ -23,17 +25,24 @@ const CATEGORY_MAP: Record<string, { label: string; icon: string }> = {
 }
 
 export default function VendorDetailScreen({ route, navigation }: any) {
+    const { colorScheme } = useTheme()
     const c = getColors()
     const t = getTypography()
     const vendor = route.params?.vendor
+    const { addItem, cart } = useCart()
 
     const [products, setProducts] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
     const [refreshing, setRefreshing] = useState(false)
+    const [toastMsg, setToastMsg] = useState("")
+    const toastOpacity = useRef(new Animated.Value(0)).current
 
     if (!vendor) return null
 
     const cat = CATEGORY_MAP[vendor.category] || CATEGORY_MAP.other
+
+    // Count items for this vendor in cart
+    const vendorCartCount = cart[vendor.id]?.items.reduce((s, i) => s + i.quantity, 0) || 0
 
     const loadProducts = async () => {
         try {
@@ -56,19 +65,23 @@ export default function VendorDetailScreen({ route, navigation }: any) {
         loadProducts()
     }
 
-    const addToCart = (product: any) => {
-        navigation.navigate("CartTab", {
-            screen: "Cart",
-            params: {
-                addItem: {
-                    product_name: product.name,
-                    unit_price: Number(product.price) || 0,
-                    quantity: 1,
-                    notes: "",
-                },
-                vendor,
-            },
-        })
+    const handleAddToCart = (product: any) => {
+        addItem(vendor, product)
+        // Show toast
+        setToastMsg(`${product.name} sepete eklendi ✓`)
+        Animated.sequence([
+            Animated.timing(toastOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+            Animated.delay(1500),
+            Animated.timing(toastOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+        ]).start()
+    }
+
+    // Get item quantity in cart
+    const getItemQty = (productName: string): number => {
+        const vc = cart[vendor.id]
+        if (!vc) return 0
+        const item = vc.items.find(i => i.product_name === productName)
+        return item?.quantity || 0
     }
 
     // Ürünleri kategoriye göre grupla
@@ -80,82 +93,116 @@ export default function VendorDetailScreen({ route, navigation }: any) {
     }, {})
 
     return (
-        <ScrollView
-            style={[styles.container, { backgroundColor: c.bg.base }]}
-            contentContainerStyle={{ paddingBottom: spacing.xxxl }}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.interactive} />}
-        >
-            {/* Header */}
-            <View style={[styles.header, { backgroundColor: c.bg.subtle, borderBottomColor: c.border.base }]}>
-                <View style={[styles.iconCircle, { backgroundColor: c.bg.field }]}>
-                    <Ionicons name={cat.icon as any} size={40} color={c.interactive} />
+        <View style={{ flex: 1, backgroundColor: c.bg.base }}>
+            <ScrollView
+                style={[styles.container, { backgroundColor: c.bg.base }]}
+                contentContainerStyle={{ paddingBottom: vendorCartCount > 0 ? 80 : spacing.xxxl }}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.interactive} />}
+            >
+                {/* Header */}
+                <View style={[styles.header, { backgroundColor: c.bg.subtle, borderBottomColor: c.border.base }]}>
+                    <View style={[styles.iconCircle, { backgroundColor: c.bg.field }]}>
+                        <Ionicons name={cat.icon as any} size={40} color={c.interactive} />
+                    </View>
+                    <Text style={[t.h1, { marginTop: spacing.md, textAlign: "center" }]}>{vendor.name}</Text>
+                    <View style={[styles.catBadge, { backgroundColor: c.interactive + "18" }]}>
+                        <Text style={{ fontSize: 12, fontWeight: "500", color: c.interactive }}>{cat.label}</Text>
+                    </View>
                 </View>
-                <Text style={[t.h1, { marginTop: spacing.md, textAlign: "center" }]}>{vendor.name}</Text>
-                <View style={[styles.catBadge, { backgroundColor: c.interactive + "18" }]}>
-                    <Text style={{ fontSize: 12, fontWeight: "500", color: c.interactive }}>{cat.label}</Text>
-                </View>
-            </View>
 
-            {/* Info */}
-            <View style={[styles.section, { borderBottomColor: c.border.base }]}>
-                <View style={styles.infoRow}>
-                    <Ionicons name="location-outline" size={16} color={c.fg.muted} />
-                    <Text style={[t.body, { marginLeft: spacing.sm, flex: 1 }]}>{vendor.address}</Text>
-                </View>
-                <View style={styles.infoRow}>
-                    <Ionicons name="call-outline" size={16} color={c.fg.muted} />
-                    <Text style={[t.body, { marginLeft: spacing.sm }]}>{vendor.phone}</Text>
-                </View>
-                {vendor.description ? (
+                {/* Info */}
+                <View style={[styles.section, { borderBottomColor: c.border.base }]}>
                     <View style={styles.infoRow}>
-                        <Ionicons name="information-circle-outline" size={16} color={c.fg.muted} />
-                        <Text style={[t.body, { marginLeft: spacing.sm, flex: 1 }]}>{vendor.description}</Text>
+                        <Ionicons name="location-outline" size={16} color={c.fg.muted} />
+                        <Text style={[t.body, { marginLeft: spacing.sm, flex: 1 }]}>{vendor.address}</Text>
                     </View>
-                ) : null}
-            </View>
-
-            {/* Menu */}
-            <View style={styles.menuSection}>
-                <Text style={[t.h2, { marginBottom: spacing.lg }]}>Menü</Text>
-
-                {loading ? (
-                    <ActivityIndicator size="large" color={c.interactive} style={{ marginTop: spacing.xl }} />
-                ) : products.length === 0 ? (
-                    <View style={styles.emptyState}>
-                        <Ionicons name="fast-food-outline" size={48} color={c.fg.muted} />
-                        <Text style={[t.body, { color: c.fg.muted, marginTop: spacing.md, textAlign: "center" }]}>
-                            Bu işletmenin henüz menüsü eklenmemiş.
-                        </Text>
+                    <View style={styles.infoRow}>
+                        <Ionicons name="call-outline" size={16} color={c.fg.muted} />
+                        <Text style={[t.body, { marginLeft: spacing.sm }]}>{vendor.phone}</Text>
                     </View>
-                ) : (
-                    Object.entries(grouped).map(([category, items]: [string, any]) => (
-                        <View key={category} style={{ marginBottom: spacing.lg }}>
-                            <Text style={[t.h3, { marginBottom: spacing.sm, color: c.fg.muted, textTransform: "capitalize" }]}>
-                                {category}
-                            </Text>
-                            {items.map((p: any) => (
-                                <View key={p.id} style={[styles.menuCard, { backgroundColor: c.bg.component, borderColor: c.border.base }, shadow.sm]}>
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={[t.h3]}>{p.name}</Text>
-                                        {p.description ? (
-                                            <Text style={[t.small, { marginTop: 2 }]}>{p.description}</Text>
-                                        ) : null}
-                                        <Text style={[t.price, { marginTop: spacing.xs }]}>₺{Number(p.price).toFixed(2)}</Text>
-                                    </View>
-                                    <TouchableOpacity
-                                        style={[styles.addBtn, { backgroundColor: c.interactive }]}
-                                        onPress={() => addToCart(p)}
-                                        activeOpacity={0.7}
-                                    >
-                                        <Ionicons name="add" size={20} color={c.fg.on_color} />
-                                    </TouchableOpacity>
-                                </View>
-                            ))}
+                    {vendor.description ? (
+                        <View style={styles.infoRow}>
+                            <Ionicons name="information-circle-outline" size={16} color={c.fg.muted} />
+                            <Text style={[t.body, { marginLeft: spacing.sm, flex: 1 }]}>{vendor.description}</Text>
                         </View>
-                    ))
-                )}
-            </View>
-        </ScrollView>
+                    ) : null}
+                </View>
+
+                {/* Menu */}
+                <View style={styles.menuSection}>
+                    <Text style={[t.h2, { marginBottom: spacing.lg }]}>Menü</Text>
+
+                    {loading ? (
+                        <ActivityIndicator size="large" color={c.interactive} style={{ marginTop: spacing.xl }} />
+                    ) : products.length === 0 ? (
+                        <View style={styles.emptyState}>
+                            <Ionicons name="fast-food-outline" size={48} color={c.fg.muted} />
+                            <Text style={[t.body, { color: c.fg.muted, marginTop: spacing.md, textAlign: "center" }]}>
+                                Bu işletmenin henüz menüsü eklenmemiş.
+                            </Text>
+                        </View>
+                    ) : (
+                        Object.entries(grouped).map(([category, items]: [string, any]) => (
+                            <View key={category} style={{ marginBottom: spacing.lg }}>
+                                <Text style={[t.h3, { marginBottom: spacing.sm, color: c.fg.muted, textTransform: "capitalize" }]}>
+                                    {category}
+                                </Text>
+                                {items.map((p: any) => {
+                                    const qty = getItemQty(p.name)
+                                    return (
+                                        <View key={p.id} style={[styles.menuCard, { backgroundColor: c.bg.component, borderColor: c.border.base }, shadow.sm]}>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={[t.h3]}>{p.name}</Text>
+                                                {p.description ? (
+                                                    <Text style={[t.small, { marginTop: 2 }]}>{p.description}</Text>
+                                                ) : null}
+                                                <Text style={[t.price, { marginTop: spacing.xs }]}>₺{Number(p.price).toFixed(2)}</Text>
+                                            </View>
+                                            <View style={{ alignItems: "center" }}>
+                                                <TouchableOpacity
+                                                    style={[styles.addBtn, { backgroundColor: c.interactive }]}
+                                                    onPress={() => handleAddToCart(p)}
+                                                    activeOpacity={0.7}
+                                                >
+                                                    <Ionicons name="add" size={20} color={c.fg.on_color} />
+                                                </TouchableOpacity>
+                                                {qty > 0 && (
+                                                    <Text style={[t.small, { marginTop: 4, color: c.interactive, fontWeight: "600" }]}>{qty} adet</Text>
+                                                )}
+                                            </View>
+                                        </View>
+                                    )
+                                })}
+                            </View>
+                        ))
+                    )}
+                </View>
+            </ScrollView>
+
+            {/* Floating cart summary */}
+            {vendorCartCount > 0 && (
+                <TouchableOpacity
+                    style={[styles.floatingCart, { backgroundColor: c.interactive }]}
+                    activeOpacity={0.85}
+                    onPress={() => navigation.navigate("CartTab")}
+                >
+                    <Ionicons name="bag" size={20} color={c.fg.on_color} />
+                    <Text style={styles.floatingCartText}>
+                        Sepeti Gör ({vendorCartCount} ürün)
+                    </Text>
+                    <Ionicons name="chevron-forward" size={18} color={c.fg.on_color} />
+                </TouchableOpacity>
+            )}
+
+            {/* Toast */}
+            <Animated.View
+                style={[styles.toast, { backgroundColor: c.tag.green.bg, opacity: toastOpacity }]}
+                pointerEvents="none"
+            >
+                <Ionicons name="checkmark-circle" size={18} color={c.tag.green.fg} />
+                <Text style={[styles.toastText, { color: c.tag.green.fg }]}>{toastMsg}</Text>
+            </Animated.View>
+        </View>
     )
 }
 
@@ -170,4 +217,30 @@ const styles = StyleSheet.create({
     menuCard: { flexDirection: "row", alignItems: "center", padding: spacing.lg, borderRadius: radius.lg, borderWidth: 1, marginBottom: spacing.md },
     addBtn: { width: 36, height: 36, borderRadius: 18, justifyContent: "center", alignItems: "center" },
     emptyState: { alignItems: "center", paddingVertical: spacing.xxxl },
+    floatingCart: {
+        position: "absolute",
+        bottom: 16,
+        left: 16,
+        right: 16,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 8,
+        paddingVertical: 14,
+        borderRadius: radius.lg,
+    },
+    floatingCartText: { color: "#fff", fontSize: 15, fontWeight: "600" },
+    toast: {
+        position: "absolute",
+        top: 8,
+        left: 20,
+        right: 20,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        borderRadius: radius.md,
+    },
+    toastText: { fontSize: 14, fontWeight: "500" },
 })

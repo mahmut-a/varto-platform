@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "843402753576",
+    "project_id": "varto-20b09",
+    "storage_bucket": "varto-20b09.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:843402753576:android:69d75273c90204b2d2a71d",
+        "android_client_info": {
+          "package_name": "com.zarifevren.vendorapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAoLHHPqTlL6K-mR9KR2D5Gj8XV7JICO2A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react"
+import React, { useState } from "react"
 import {
     View,
     Text,
@@ -9,109 +9,82 @@ import {
     Alert,
     KeyboardAvoidingView,
     Platform,
-    useColorScheme,
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import { getColors, getTypography, spacing, radius, shadow } from "../theme/tokens"
 import { createOrder } from "../api/client"
+import { useCart } from "../context/CartContext"
+import { useTheme } from "../context/ThemeContext"
 
-interface CartItem {
-    product_name: string
-    unit_price: number
-    quantity: number
-    notes: string
-}
-
-export default function CartScreen({ route, navigation, customer }: any) {
+export default function CartScreen({ navigation, customer }: any) {
+    const { colorScheme } = useTheme()
     const c = getColors()
     const t = getTypography()
+    const { cart, updateQuantity, clearVendor, clearAll } = useCart()
 
-    const [items, setItems] = useState<CartItem[]>([])
-    const [vendor, setVendor] = useState<any>(null)
     const [address, setAddress] = useState(customer?.address || "")
     const [notes, setNotes] = useState("")
     const [phone, setPhone] = useState(customer?.phone || "")
     const [submitting, setSubmitting] = useState(false)
-    const [orderId, setOrderId] = useState<string | null>(null)
 
-    // Receive items from VendorDetail
-    useEffect(() => {
-        if (route.params?.addItem && route.params?.vendor) {
-            const newItem = route.params.addItem as CartItem
-            setVendor(route.params.vendor)
-            setItems((prev) => {
-                const existing = prev.findIndex((i) => i.product_name === newItem.product_name)
-                if (existing >= 0) {
-                    const updated = [...prev]
-                    updated[existing].quantity += 1
-                    return updated
-                }
-                return [...prev, newItem]
-            })
-            // Clear params
-            navigation.setParams({ addItem: undefined, vendor: undefined })
-        }
-    }, [route.params?.addItem])
+    const vendors = Object.entries(cart)
+    const isEmpty = vendors.length === 0
 
-    const updateQty = (idx: number, delta: number) => {
-        setItems((prev) => {
-            const updated = [...prev]
-            updated[idx].quantity = Math.max(0, updated[idx].quantity + delta)
-            return updated.filter((i) => i.quantity > 0)
-        })
-    }
-
-    const total = items.reduce((sum, i) => sum + i.unit_price * i.quantity, 0)
+    const grandTotal = vendors.reduce((sum, [, vc]) =>
+        sum + vc.items.reduce((s, i) => s + i.unit_price * i.quantity, 0), 0)
     const deliveryFee = 15
+    const totalDeliveryFees = vendors.length * deliveryFee
 
     const handleSubmit = async () => {
-        if (!vendor) { Alert.alert("Hata", "Lütfen bir işletmeden ürün ekleyin."); return }
-        if (items.length === 0) { Alert.alert("Hata", "Sepetiniz boş."); return }
+        if (isEmpty) { Alert.alert("Hata", "Sepetiniz boş."); return }
         if (!address.trim()) { Alert.alert("Hata", "Teslimat adresi zorunludur."); return }
         if (!phone.trim()) { Alert.alert("Hata", "Telefon numarası zorunludur."); return }
 
         setSubmitting(true)
         try {
-            const order = await createOrder({
-                vendor_id: vendor.id,
-                customer_id: customer?.id || null,
-                customer_phone: customer?.phone || phone,
-                delivery_address: { address, phone },
-                delivery_notes: notes || null,
-                delivery_fee: deliveryFee,
-                payment_method: "iban",
-                iban_info: vendor.iban,
-                items: items.map((i) => ({
-                    product_name: i.product_name,
-                    quantity: i.quantity,
-                    unit_price: i.unit_price,
-                })),
-            })
-            setOrderId(order.id)
-            setItems([])
-            setVendor(null)
-            Alert.alert("Sipariş Verildi! ✅", `Sipariş #${order.id.slice(-6)} oluşturuldu.`, [
-                { text: "Takip Et", onPress: () => navigation.navigate("OrdersTab", { screen: "OrderTracking", params: { orderId: order.id } }) },
-                { text: "Tamam" },
-            ])
-        } catch (e: any) {
-            const serverMsg = e?.response?.data?.message
-            const status = e?.response?.status
-            let errorMsg = "Sipariş oluşturulamadı. Lütfen tekrar deneyin."
+            const results: { vendorName: string; orderId: string }[] = []
+            const errors: string[] = []
 
-            if (serverMsg) {
-                errorMsg = serverMsg
-            } else if (status === 400) {
-                errorMsg = "Eksik veya hatalı bilgi var. Lütfen kontrol edin."
-            } else if (status === 500) {
-                errorMsg = "Sunucu hatası. Lütfen daha sonra tekrar deneyin."
-            } else if (e?.code === "ECONNABORTED") {
-                errorMsg = "Bağlantı zaman aşımına uğradı."
-            } else if (!e?.response) {
-                errorMsg = "İnternet bağlantınızı kontrol edin."
+            // Create one order per vendor
+            for (const [vendorId, vc] of vendors) {
+                try {
+                    const order = await createOrder({
+                        vendor_id: vendorId,
+                        customer_id: customer?.id || null,
+                        customer_phone: customer?.phone || phone,
+                        delivery_address: { address, phone },
+                        delivery_notes: notes || null,
+                        delivery_fee: deliveryFee,
+                        payment_method: "iban",
+                        iban_info: vc.vendor.iban,
+                        items: vc.items.map((i) => ({
+                            product_name: i.product_name,
+                            quantity: i.quantity,
+                            unit_price: i.unit_price,
+                        })),
+                    })
+                    results.push({ vendorName: vc.vendor.name, orderId: order.id })
+                    clearVendor(vendorId)
+                } catch (e: any) {
+                    errors.push(`${vc.vendor.name}: ${e?.response?.data?.message || "Hata"}`)
+                }
             }
 
-            Alert.alert("Sipariş Hatası", errorMsg)
+            if (results.length > 0) {
+                const msg = results.map(r => `• ${r.vendorName} — #${r.orderId.slice(-6)}`).join("\n")
+                Alert.alert(
+                    `${results.length} Sipariş Verildi! ✅`,
+                    msg + (errors.length > 0 ? `\n\nHatalar:\n${errors.join("\n")}` : ""),
+                    [
+                        { text: "Takip Et", onPress: () => navigation.navigate("OrdersTab", { screen: "OrderTracking", params: { orderId: results[0].orderId } }) },
+                        { text: "Tamam" },
+                    ]
+                )
+            } else {
+                Alert.alert("Sipariş Hatası", errors.join("\n"))
+            }
+        } catch (e: any) {
+            Alert.alert("Sipariş Hatası", "Bir hata oluştu. Lütfen tekrar deneyin.")
         } finally {
             setSubmitting(false)
         }
@@ -120,16 +93,7 @@ export default function CartScreen({ route, navigation, customer }: any) {
     return (
         <KeyboardAvoidingView style={[styles.container, { backgroundColor: c.bg.base }]} behavior={Platform.OS === "ios" ? "padding" : undefined}>
             <ScrollView contentContainerStyle={styles.scrollContent}>
-                {/* Vendor info */}
-                {vendor && (
-                    <View style={[styles.vendorBar, { backgroundColor: c.bg.subtle, borderColor: c.border.base }]}>
-                        <Ionicons name="storefront-outline" size={18} color={c.interactive} />
-                        <Text style={[t.h3, { marginLeft: spacing.sm, flex: 1 }]}>{vendor.name}</Text>
-                    </View>
-                )}
-
-                {/* Items */}
-                {items.length === 0 ? (
+                {isEmpty ? (
                     <View style={styles.empty}>
                         <Ionicons name="bag-outline" size={56} color={c.fg.disabled} />
                         <Text style={[t.body, { marginTop: spacing.lg, textAlign: "center" }]}>Sepetiniz boş</Text>
@@ -138,23 +102,53 @@ export default function CartScreen({ route, navigation, customer }: any) {
                 ) : (
                     <>
                         <Text style={[t.h2, { marginBottom: spacing.md }]}>Sepetiniz</Text>
-                        {items.map((item, idx) => (
-                            <View key={idx} style={[styles.itemCard, { backgroundColor: c.bg.component, borderColor: c.border.base }]}>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={[t.h3]}>{item.product_name}</Text>
-                                    <Text style={[t.price, { marginTop: 2 }]}>₺{item.unit_price}</Text>
+
+                        {/* Vendor groups */}
+                        {vendors.map(([vendorId, vc]) => {
+                            const vendorTotal = vc.items.reduce((s, i) => s + i.unit_price * i.quantity, 0)
+                            return (
+                                <View key={vendorId} style={{ marginBottom: spacing.xl }}>
+                                    {/* Vendor header */}
+                                    <View style={[styles.vendorBar, { backgroundColor: c.bg.subtle, borderColor: c.border.base }]}>
+                                        <Ionicons name="storefront-outline" size={18} color={c.interactive} />
+                                        <Text style={[t.h3, { marginLeft: spacing.sm, flex: 1 }]}>{vc.vendor.name}</Text>
+                                        <TouchableOpacity onPress={() => {
+                                            Alert.alert("Temizle", `${vc.vendor.name} sepetini temizlemek istiyor musunuz?`, [
+                                                { text: "İptal", style: "cancel" },
+                                                { text: "Temizle", style: "destructive", onPress: () => clearVendor(vendorId) },
+                                            ])
+                                        }}>
+                                            <Ionicons name="trash-outline" size={18} color={c.tag.red.fg} />
+                                        </TouchableOpacity>
+                                    </View>
+
+                                    {/* Items */}
+                                    {vc.items.map((item, idx) => (
+                                        <View key={idx} style={[styles.itemCard, { backgroundColor: c.bg.component, borderColor: c.border.base }]}>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={[t.h3]}>{item.product_name}</Text>
+                                                <Text style={[t.price, { marginTop: 2 }]}>₺{item.unit_price.toFixed(2)}</Text>
+                                            </View>
+                                            <View style={styles.qtyRow}>
+                                                <TouchableOpacity style={[styles.qtyBtn, { backgroundColor: c.bg.field }]} onPress={() => updateQuantity(vendorId, item.product_name, -1)}>
+                                                    <Ionicons name="remove" size={16} color={c.fg.subtle} />
+                                                </TouchableOpacity>
+                                                <Text style={[t.h3, { minWidth: 28, textAlign: "center" }]}>{item.quantity}</Text>
+                                                <TouchableOpacity style={[styles.qtyBtn, { backgroundColor: c.bg.field }]} onPress={() => updateQuantity(vendorId, item.product_name, 1)}>
+                                                    <Ionicons name="add" size={16} color={c.fg.subtle} />
+                                                </TouchableOpacity>
+                                            </View>
+                                        </View>
+                                    ))}
+
+                                    {/* Vendor subtotal */}
+                                    <View style={[styles.vendorSubtotal, { borderTopColor: c.border.base }]}>
+                                        <Text style={[t.label]}>Ara toplam</Text>
+                                        <Text style={[t.label, { color: c.fg.base }]}>₺{vendorTotal.toFixed(2)}</Text>
+                                    </View>
                                 </View>
-                                <View style={styles.qtyRow}>
-                                    <TouchableOpacity style={[styles.qtyBtn, { backgroundColor: c.bg.field }]} onPress={() => updateQty(idx, -1)}>
-                                        <Ionicons name="remove" size={16} color={c.fg.subtle} />
-                                    </TouchableOpacity>
-                                    <Text style={[t.h3, { minWidth: 28, textAlign: "center" }]}>{item.quantity}</Text>
-                                    <TouchableOpacity style={[styles.qtyBtn, { backgroundColor: c.bg.field }]} onPress={() => updateQty(idx, 1)}>
-                                        <Ionicons name="add" size={16} color={c.fg.subtle} />
-                                    </TouchableOpacity>
-                                </View>
-                            </View>
-                        ))}
+                            )
+                        })}
 
                         {/* Order form */}
                         <View style={[styles.formSection, { borderTopColor: c.border.base }]}>
@@ -193,23 +187,23 @@ export default function CartScreen({ route, navigation, customer }: any) {
                         {/* Summary */}
                         <View style={[styles.summary, { borderTopColor: c.border.base }]}>
                             <View style={styles.summaryRow}>
-                                <Text style={[t.body]}>Ara Toplam</Text>
-                                <Text style={[t.body]}>₺{total.toLocaleString("tr-TR")}</Text>
+                                <Text style={[t.body]}>Ürünler Toplamı</Text>
+                                <Text style={[t.body]}>₺{grandTotal.toFixed(2)}</Text>
                             </View>
                             <View style={styles.summaryRow}>
-                                <Text style={[t.body]}>Teslimat</Text>
-                                <Text style={[t.body]}>₺{deliveryFee}</Text>
+                                <Text style={[t.body]}>Teslimat ({vendors.length} satıcı × ₺{deliveryFee})</Text>
+                                <Text style={[t.body]}>₺{totalDeliveryFees}</Text>
                             </View>
                             <View style={[styles.summaryRow, { marginTop: spacing.sm, paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: c.border.base }]}>
                                 <Text style={[t.h2]}>Toplam</Text>
-                                <Text style={[t.h2, { color: c.interactive }]}>₺{(total + deliveryFee).toLocaleString("tr-TR")}</Text>
+                                <Text style={[t.h2, { color: c.interactive }]}>₺{(grandTotal + totalDeliveryFees).toFixed(2)}</Text>
                             </View>
                         </View>
                     </>
                 )}
             </ScrollView>
 
-            {items.length > 0 && (
+            {!isEmpty && (
                 <View style={[styles.bottomBar, { backgroundColor: c.bg.component, borderTopColor: c.border.base }]}>
                     <TouchableOpacity
                         style={[styles.submitBtn, { backgroundColor: c.interactive, opacity: submitting ? 0.5 : 1 }]}
@@ -219,7 +213,7 @@ export default function CartScreen({ route, navigation, customer }: any) {
                     >
                         <Ionicons name="checkmark-circle-outline" size={20} color={c.fg.on_color} />
                         <Text style={[styles.submitText, { color: c.fg.on_color }]}>
-                            {submitting ? "Gönderiliyor..." : `Sipariş Ver — ₺${(total + deliveryFee).toLocaleString("tr-TR")}`}
+                            {submitting ? "Gönderiliyor..." : `Sipariş Ver — ₺${(grandTotal + totalDeliveryFees).toFixed(2)}`}
                         </Text>
                     </TouchableOpacity>
                 </View>
@@ -231,11 +225,12 @@ export default function CartScreen({ route, navigation, customer }: any) {
 const styles = StyleSheet.create({
     container: { flex: 1 },
     scrollContent: { padding: spacing.xl, paddingBottom: 100 },
-    vendorBar: { flexDirection: "row", alignItems: "center", padding: spacing.lg, borderRadius: radius.lg, borderWidth: 1, marginBottom: spacing.xl },
+    vendorBar: { flexDirection: "row", alignItems: "center", padding: spacing.lg, borderRadius: radius.lg, borderWidth: 1, marginBottom: spacing.md },
     empty: { alignItems: "center", paddingTop: 80 },
     itemCard: { flexDirection: "row", alignItems: "center", padding: spacing.lg, borderRadius: radius.lg, borderWidth: 1, marginBottom: spacing.md },
     qtyRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
     qtyBtn: { width: 32, height: 32, borderRadius: 16, justifyContent: "center", alignItems: "center" },
+    vendorSubtotal: { flexDirection: "row", justifyContent: "space-between", paddingTop: spacing.sm, borderTopWidth: 1, marginTop: spacing.xs },
     formSection: { marginTop: spacing.xl, paddingTop: spacing.xl, borderTopWidth: 1 },
     input: { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, fontSize: 14, minHeight: 44 },
     summary: { marginTop: spacing.xl, paddingTop: spacing.lg, borderTopWidth: 1 },

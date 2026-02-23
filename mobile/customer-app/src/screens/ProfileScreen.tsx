@@ -8,17 +8,19 @@ import {
     ScrollView,
     ActivityIndicator,
     Alert,
-    useColorScheme,
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import { getColors, getTypography, spacing, radius } from "../theme/tokens"
 import { getMe, updateProfile } from "../api/client"
+import { useTheme, ThemeMode } from "../context/ThemeContext"
 
-export default function ProfileScreen({ customer, onLogout, onUpdateCustomer }: {
+export default function ProfileScreen({ navigation, customer, onLogout, onUpdateCustomer }: {
+    navigation: any
     customer: any
     onLogout: () => void
     onUpdateCustomer: (c: any) => void
 }) {
+    const { themeMode, setThemeMode, colorScheme } = useTheme()
     const c = getColors()
     const t = getTypography()
 
@@ -66,6 +68,25 @@ export default function ProfileScreen({ customer, onLogout, onUpdateCustomer }: 
         </View>
     )
 
+    const themeModes: { mode: ThemeMode; label: string; icon: string }[] = [
+        { mode: "system", label: "Sistem", icon: "phone-portrait-outline" },
+        { mode: "light", label: "Açık", icon: "sunny-outline" },
+        { mode: "dark", label: "Koyu", icon: "moon-outline" },
+    ]
+
+    const menuItem = (icon: string, label: string, onPress: () => void, color?: string) => (
+        <TouchableOpacity
+            key={label}
+            style={[styles.menuRow, { borderColor: c.border.base }]}
+            onPress={onPress}
+            activeOpacity={0.7}
+        >
+            <Ionicons name={icon as any} size={20} color={color || c.fg.subtle} />
+            <Text style={[t.h3, { flex: 1, marginLeft: spacing.md, color: color || c.fg.base }]}>{label}</Text>
+            <Ionicons name="chevron-forward" size={16} color={c.fg.muted} />
+        </TouchableOpacity>
+    )
+
     return (
         <ScrollView style={[styles.container, { backgroundColor: c.bg.base }]} contentContainerStyle={styles.scrollContent}>
             {/* Avatar */}
@@ -111,6 +132,42 @@ export default function ProfileScreen({ customer, onLogout, onUpdateCustomer }: 
                 </TouchableOpacity>
             )}
 
+            {/* Theme Selection */}
+            <View style={[styles.sectionHeader, { borderTopColor: c.border.base }]}>
+                <Ionicons name="color-palette-outline" size={18} color={c.fg.subtle} />
+                <Text style={[t.h3, { marginLeft: spacing.sm }]}>Tema</Text>
+            </View>
+            <View style={styles.themeRow}>
+                {themeModes.map((tm) => {
+                    const active = themeMode === tm.mode
+                    return (
+                        <TouchableOpacity
+                            key={tm.mode}
+                            style={[
+                                styles.themeBtn,
+                                {
+                                    backgroundColor: active ? c.interactive : c.bg.field,
+                                    borderColor: active ? c.interactive : c.border.base,
+                                },
+                            ]}
+                            onPress={() => setThemeMode(tm.mode)}
+                            activeOpacity={0.7}
+                        >
+                            <Ionicons name={tm.icon as any} size={18} color={active ? c.fg.on_color : c.fg.subtle} />
+                            <Text style={[styles.themeBtnText, { color: active ? c.fg.on_color : c.fg.subtle }]}>
+                                {tm.label}
+                            </Text>
+                        </TouchableOpacity>
+                    )
+                })}
+            </View>
+
+            {/* Menu Links */}
+            <View style={[styles.menuSection, { borderTopColor: c.border.base }]}>
+                {menuItem("receipt-outline", "Sipariş Geçmişi", () => navigation.navigate("OrderHistory"))}
+                {menuItem("heart-outline", "Favorilerim", () => navigation.navigate("Favorites"))}
+            </View>
+
             {/* Logout */}
             <TouchableOpacity style={[styles.logoutBtn, { borderColor: c.border.base }]} onPress={onLogout}>
                 <Ionicons name="log-out-outline" size={20} color={c.tag.red.fg} />
@@ -131,6 +188,26 @@ const styles = StyleSheet.create({
     fieldInput: { flex: 1, fontSize: 14, fontWeight: "500" },
     saveBtn: { paddingVertical: spacing.md, borderRadius: radius.md, alignItems: "center", marginTop: spacing.xl },
     saveBtnText: { fontSize: 15, fontWeight: "600" },
+    sectionHeader: { flexDirection: "row", alignItems: "center", marginTop: spacing.xxl, paddingTop: spacing.xl, borderTopWidth: 1, marginBottom: spacing.md },
+    themeRow: { flexDirection: "row", gap: spacing.sm },
+    themeBtn: {
+        flex: 1,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 6,
+        paddingVertical: spacing.md,
+        borderRadius: radius.md,
+        borderWidth: 1,
+    },
+    themeBtnText: { fontSize: 13, fontWeight: "600" },
+    menuSection: { marginTop: spacing.xxl, paddingTop: spacing.xl, borderTopWidth: 1 },
+    menuRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        paddingVertical: spacing.lg,
+        borderBottomWidth: 1,
+    },
     logoutBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm, paddingVertical: spacing.lg, borderRadius: radius.md, borderWidth: 1, marginTop: spacing.xxl },
     logoutText: { fontSize: 14, fontWeight: "600" },
 })

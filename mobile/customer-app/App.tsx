@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react"
-import { useColorScheme, ActivityIndicator, View } from "react-native"
+import { ActivityIndicator, View } from "react-native"
 import { StatusBar } from "expo-status-bar"
 import { NavigationContainer, DefaultTheme, DarkTheme } from "@react-navigation/native"
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs"
@@ -7,8 +7,10 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack"
 import { SafeAreaProvider } from "react-native-safe-area-context"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { Ionicons } from "@expo/vector-icons"
-import { getColors } from "./src/theme/tokens"
+import { getColors, setThemeScheme } from "./src/theme/tokens"
 import { setCustomerToken, getMe } from "./src/api/client"
+import { ThemeProvider, useTheme } from "./src/context/ThemeContext"
+import { CartProvider, useCart } from "./src/context/CartContext"
 
 import PhoneLoginScreen from "./src/screens/PhoneLoginScreen"
 import OTPScreen from "./src/screens/OTPScreen"
@@ -29,6 +31,8 @@ const STORAGE_KEYS = { token: "@varto_token", customer: "@varto_customer" }
 
 // ─── Stack Navigators ───
 function HomeStack() {
+    const { colorScheme } = useTheme()
+    setThemeScheme(colorScheme)
     const c = getColors()
     const headerOpts = {
         headerStyle: { backgroundColor: c.bg.base },
@@ -45,6 +49,8 @@ function HomeStack() {
 }
 
 function CartStack({ customer }: { customer: any }) {
+    const { colorScheme } = useTheme()
+    setThemeScheme(colorScheme)
     const c = getColors()
     return (
         <Stack.Navigator screenOptions={{ headerStyle: { backgroundColor: c.bg.base }, headerTintColor: c.fg.base, headerShadowVisible: false, headerTitleStyle: { fontWeight: "600" as const, fontSize: 16 } }}>
@@ -56,6 +62,8 @@ function CartStack({ customer }: { customer: any }) {
 }
 
 function OrdersStack() {
+    const { colorScheme } = useTheme()
+    setThemeScheme(colorScheme)
     const c = getColors()
     return (
         <Stack.Navigator screenOptions={{ headerStyle: { backgroundColor: c.bg.base }, headerTintColor: c.fg.base, headerShadowVisible: false, headerTitleStyle: { fontWeight: "600" as const, fontSize: 16 } }}>
@@ -65,6 +73,8 @@ function OrdersStack() {
 }
 
 function ProfileStack({ customer, onLogout, onUpdateCustomer }: { customer: any; onLogout: () => void; onUpdateCustomer: (c: any) => void }) {
+    const { colorScheme } = useTheme()
+    setThemeScheme(colorScheme)
     const c = getColors()
     const headerOpts = { headerStyle: { backgroundColor: c.bg.base }, headerTintColor: c.fg.base, headerShadowVisible: false, headerTitleStyle: { fontWeight: "600" as const, fontSize: 16 } }
     return (
@@ -76,14 +86,17 @@ function ProfileStack({ customer, onLogout, onUpdateCustomer }: { customer: any;
                 {(props) => <OrderHistoryScreen {...props} customer={customer} />}
             </Stack.Screen>
             <Stack.Screen name="Favorites" component={FavoritesScreen} options={{ title: "Favorilerim" }} />
+            <Stack.Screen name="OrderTrackingDetail" component={OrderTrackingScreen} options={{ title: "Sipariş Detayı" }} />
         </Stack.Navigator>
     )
 }
 
-// ─── Main App ───
-export default function App() {
-    const scheme = useColorScheme()
+// ─── Inner App (uses contexts) ───
+function AppInner() {
+    const { colorScheme } = useTheme()
+    setThemeScheme(colorScheme)
     const c = getColors()
+    const { getCartCount } = useCart()
 
     const [authState, setAuthState] = useState<"loading" | "phone" | "otp" | "register" | "authenticated">("loading")
     const [phone, setPhone] = useState("")
@@ -99,13 +112,11 @@ export default function App() {
                 if (token && stored) {
                     setCustomerToken(token)
                     setCustomer(JSON.parse(stored))
-                    // Verify token is still valid
                     try {
                         const fresh = await getMe()
                         setCustomer(fresh)
                         setAuthState("authenticated")
                     } catch {
-                        // Token expired — clear and show login
                         await AsyncStorage.multiRemove([STORAGE_KEYS.token, STORAGE_KEYS.customer])
                         setCustomerToken(null)
                         setAuthState("phone")
@@ -129,7 +140,6 @@ export default function App() {
         setCustomer(cust)
         await AsyncStorage.setItem(STORAGE_KEYS.token, token)
         await AsyncStorage.setItem(STORAGE_KEYS.customer, JSON.stringify(cust))
-        // New users go to registration form, existing users go to main app
         if (isNewUser && !cust.name) {
             setAuthState("register")
         } else {
@@ -156,9 +166,9 @@ export default function App() {
     }
 
     const MedusaTheme = {
-        ...(scheme === "dark" ? DarkTheme : DefaultTheme),
+        ...(colorScheme === "dark" ? DarkTheme : DefaultTheme),
         colors: {
-            ...(scheme === "dark" ? DarkTheme.colors : DefaultTheme.colors),
+            ...(colorScheme === "dark" ? DarkTheme.colors : DefaultTheme.colors),
             primary: c.interactive,
             background: c.bg.base,
             card: c.bg.base,
@@ -174,7 +184,7 @@ export default function App() {
                 <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: c.bg.base }}>
                     <ActivityIndicator size="large" color={c.interactive} />
                 </View>
-                <StatusBar style={scheme === "dark" ? "light" : "dark"} />
+                <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
             </SafeAreaProvider>
         )
     }
@@ -184,7 +194,7 @@ export default function App() {
         return (
             <SafeAreaProvider>
                 <PhoneLoginScreen onOtpSent={handleOtpSent} />
-                <StatusBar style={scheme === "dark" ? "light" : "dark"} />
+                <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
             </SafeAreaProvider>
         )
     }
@@ -193,7 +203,7 @@ export default function App() {
         return (
             <SafeAreaProvider>
                 <OTPScreen phone={phone} onVerified={handleVerified} onBack={() => setAuthState("phone")} />
-                <StatusBar style={scheme === "dark" ? "light" : "dark"} />
+                <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
             </SafeAreaProvider>
         )
     }
@@ -202,10 +212,12 @@ export default function App() {
         return (
             <SafeAreaProvider>
                 <RegisterScreen customer={customer} onComplete={handleRegistrationComplete} />
-                <StatusBar style={scheme === "dark" ? "light" : "dark"} />
+                <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
             </SafeAreaProvider>
         )
     }
+
+    const cartCount = getCartCount()
 
     // ── Authenticated ──
     return (
@@ -228,6 +240,8 @@ export default function App() {
                             }
                             return <Ionicons name={(icons[route.name] || "ellipse-outline") as any} size={size} color={color} />
                         },
+                        tabBarBadge: route.name === "CartTab" && cartCount > 0 ? cartCount : undefined,
+                        tabBarBadgeStyle: route.name === "CartTab" ? { backgroundColor: c.interactive, color: c.fg.on_color, fontSize: 10, minWidth: 18, height: 18, lineHeight: 18 } : undefined,
                     })}
                 >
                     <Tab.Screen name="HomeTab" component={HomeStack} options={{ title: "İşletmeler" }} />
@@ -241,7 +255,18 @@ export default function App() {
                     </Tab.Screen>
                 </Tab.Navigator>
             </NavigationContainer>
-            <StatusBar style={scheme === "dark" ? "light" : "dark"} />
+            <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
         </SafeAreaProvider>
+    )
+}
+
+// ─── Root App ───
+export default function App() {
+    return (
+        <ThemeProvider>
+            <CartProvider>
+                <AppInner />
+            </CartProvider>
+        </ThemeProvider>
     )
 }
