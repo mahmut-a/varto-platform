@@ -106,9 +106,9 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
                 const moreText = itemCount > 3 ? ` +${itemCount - 3} ürün daha` : ""
 
                 // Teslimat adresi
-                const addr = typeof updated.delivery_address === "object"
-                    ? (updated.delivery_address?.address || "")
-                    : (updated.delivery_address || "")
+                const addr: string = typeof updated.delivery_address === "object"
+                    ? ((updated.delivery_address as any)?.address || "")
+                    : (updated.delivery_address as string || "")
                 const shortAddr = addr.length > 50 ? addr.substring(0, 50) + "..." : addr
 
                 const notificationTitle = "🚀 Yeni Teslimat!"
