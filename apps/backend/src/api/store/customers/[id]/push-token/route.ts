@@ -1,6 +1,6 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
-import { CUSTOMER_MODULE } from "../../../../../../modules/customer"
-import CustomerModuleService from "../../../../../../modules/customer/service"
+import { CUSTOMER_MODULE } from "../../../../../modules/customer"
+import CustomerModuleService from "../../../../../modules/customer/service"
 
 /**
  * POST /store/customers/:id/push-token
