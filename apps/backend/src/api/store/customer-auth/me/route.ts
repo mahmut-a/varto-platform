@@ -38,7 +38,7 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
     const customerService: CustomerModuleService = req.scope.resolve(CUSTOMER_MODULE)
     const body = req.body as any
 
-    const customer = await customerService.updateCustomers({
+    const customer = await (customerService as any).updateCustomers({
         id: decoded.customer_id,
         ...(body.name !== undefined && { name: body.name }),
         ...(body.email !== undefined && { email: body.email }),

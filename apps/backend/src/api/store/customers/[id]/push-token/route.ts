@@ -15,7 +15,7 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
             return res.status(400).json({ message: "push_token zorunludur" })
         }
 
-        const customer = await customerService.updateCustomers({
+        const customer = await (customerService as any).updateCustomers({
             id: req.params.id,
             push_token,
         })
@@ -35,7 +35,7 @@ export const DELETE = async (req: MedusaRequest, res: MedusaResponse) => {
     try {
         const customerService: CustomerModuleService = req.scope.resolve(CUSTOMER_MODULE)
 
-        await customerService.updateCustomers({
+        await (customerService as any).updateCustomers({
             id: req.params.id,
             push_token: null,
         })
