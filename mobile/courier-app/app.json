@@ -1,61 +1,61 @@
 {
-    "expo": {
-        "name": "Varto Kurye",
-        "slug": "courier-app",
-        "version": "1.0.0",
-        "orientation": "portrait",
-        "icon": "./assets/icon.png",
-        "userInterfaceStyle": "light",
-        "owner": "rva24",
-        "newArchEnabled": true,
-        "splash": {
-            "image": "./assets/splash-icon.png",
-            "resizeMode": "contain",
-            "backgroundColor": "#ffffff"
-        },
-        "ios": {
-            "supportsTablet": true
-        },
-        "android": {
-            "adaptiveIcon": {
-                "foregroundImage": "./assets/adaptive-icon.png",
-                "backgroundColor": "#ffffff"
-            },
-            "edgeToEdgeEnabled": true,
-            "predictiveBackGestureEnabled": false,
-            "package": "com.zarifevren.courierapp",
-            "googleServicesFile": "./google-services.json"
-        },
-        "web": {
-            "favicon": "./assets/favicon.png"
-        },
-        "plugins": [
-            "expo-asset",
-            "expo-font",
-            [
-                "expo-build-properties",
-                {
-                    "android": {
-                        "usesCleartextTraffic": true
-                    }
-                }
-            ],
-            [
-                "expo-notifications",
-                {
-                    "icon": "./assets/icon.png",
-                    "color": "#3B82F6",
-                    "defaultChannel": "orders",
-                    "sounds": [
-                        "./assets/sounds/notification_sound.wav"
-                    ]
-                }
-            ]
-        ],
-        "extra": {
-            "eas": {
-                "projectId": ""
-            }
+  "expo": {
+    "name": "Varto Kurye",
+    "slug": "courier-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "owner": "rva24",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "package": "com.zarifevren.courierapp",
+      "googleServicesFile": "./google-services.json"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-asset",
+      "expo-font",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#3B82F6",
+          "defaultChannel": "orders",
+          "sounds": [
+            "./assets/sounds/notification_sound.wav"
+          ]
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "cf8bd142-79f5-43ff-ba0b-524116686ed9"
+      }
     }
+  }
 }

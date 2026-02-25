@@ -1,21 +1,12 @@
 // Varto Customer App — Medusa UI Design Tokens
-// Dark theme support via useColorScheme()
+// Fully reactive dark theme support via ThemeContext
 
-import { Appearance } from "react-native"
+import React from "react"
 
-let _overrideScheme: "light" | "dark" | null = null
-
-export const setThemeScheme = (scheme: "light" | "dark" | null) => {
-    _overrideScheme = scheme
-}
-
-const isDark = (scheme?: "light" | "dark") => {
-    const s = scheme || _overrideScheme || Appearance.getColorScheme()
-    return s === "dark"
-}
+export type ColorScheme = "light" | "dark"
 
 // Medusa UI Kit Colors — Light & Dark
-const light = {
+const lightColors = {
     bg: {
         base: "#FFFFFF",
         subtle: "#F8F9FA",
@@ -46,7 +37,7 @@ const light = {
     },
 }
 
-const dark = {
+const darkColors = {
     bg: {
         base: "#09090B",
         subtle: "#18181B",
@@ -77,9 +68,11 @@ const dark = {
     },
 }
 
-export const getColors = () => isDark() ? dark : light
+// ── Reactive color getter by scheme ──
+export const getColorsByScheme = (scheme: ColorScheme) =>
+    scheme === "dark" ? darkColors : lightColors
 
-// Status colors — used across themes
+// ── Status config (theme-independent) ──
 export const statusConfig = {
     pending: { label: "Bekliyor", icon: "time-outline" },
     confirmed: { label: "Onaylandı", icon: "checkmark-circle-outline" },
@@ -92,8 +85,8 @@ export const statusConfig = {
     cancelled: { label: "İptal", icon: "close-circle-outline" },
 } as const
 
-export const getStatusColor = (status: string) => {
-    const c = getColors()
+export const getStatusColor = (scheme: ColorScheme, status: string) => {
+    const c = getColorsByScheme(scheme)
     const map: Record<string, { bg: string; fg: string }> = {
         pending: c.tag.orange,
         confirmed: c.tag.blue,
@@ -108,19 +101,6 @@ export const getStatusColor = (status: string) => {
     return map[status] || c.tag.neutral
 }
 
-// statusColors — same as getStatusColor but with text/bg keys for compatibility
-export const statusColors = {
-    pending: { bg: "#FFF6ED", text: "#C4320A" },
-    confirmed: { bg: "#EFF8FF", text: "#175CD3" },
-    preparing: { bg: "#F4F3FF", text: "#5925DC" },
-    ready: { bg: "#ECFDF3", text: "#027A48" },
-    assigned: { bg: "#EFF8FF", text: "#175CD3" },
-    accepted: { bg: "#ECFDF3", text: "#027A48" },
-    delivering: { bg: "#FFF6ED", text: "#C4320A" },
-    delivered: { bg: "#ECFDF3", text: "#027A48" },
-    cancelled: { bg: "#FEF3F2", text: "#B42318" },
-}
-
 export const statusLabels: Record<string, string> = {
     pending: "Bekliyor",
     confirmed: "Onaylandı",
@@ -132,9 +112,6 @@ export const statusLabels: Record<string, string> = {
     delivered: "Teslim Edildi",
     cancelled: "İptal",
 }
-
-// Static export for non-reactive usage (initial render)
-export const colors = getColors()
 
 export const spacing = {
     xs: 4,
@@ -154,8 +131,8 @@ export const radius = {
     full: 999,
 }
 
-export const getTypography = () => {
-    const c = getColors()
+export const getTypographyByScheme = (scheme: ColorScheme) => {
+    const c = getColorsByScheme(scheme)
     return {
         h1: { fontSize: 20, fontWeight: "600" as const, color: c.fg.base, letterSpacing: -0.4 },
         h2: { fontSize: 16, fontWeight: "600" as const, color: c.fg.base },
@@ -167,9 +144,17 @@ export const getTypography = () => {
     }
 }
 
-export const typography = getTypography()
-
 export const shadow = {
     sm: { shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 3, elevation: 2 },
     md: { shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 6, elevation: 4 },
+}
+
+// ── DEPRECATED: Static exports for backward compat (default to light) ──
+// These should be migrated away in favor of useColors() hook
+export const colors = lightColors
+export const typography = getTypographyByScheme("light")
+export const getColors = () => lightColors
+export const getTypography = () => getTypographyByScheme("light")
+export const setThemeScheme = (_scheme: "light" | "dark" | null) => {
+    // No-op: deprecated, now handled reactively via ThemeContext
 }

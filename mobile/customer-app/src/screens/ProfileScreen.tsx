@@ -10,7 +10,7 @@ import {
     Alert,
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
-import { getColors, getTypography, spacing, radius } from "../theme/tokens"
+import { spacing, radius } from "../theme/tokens"
 import { getMe, updateProfile } from "../api/client"
 import { useTheme, ThemeMode } from "../context/ThemeContext"
 
@@ -20,9 +20,7 @@ export default function ProfileScreen({ navigation, customer, onLogout, onUpdate
     onLogout: () => void
     onUpdateCustomer: (c: any) => void
 }) {
-    const { themeMode, setThemeMode, colorScheme } = useTheme()
-    const c = getColors()
-    const t = getTypography()
+    const { themeMode, setThemeMode, colors: c, typography: t } = useTheme()
 
     const [name, setName] = useState(customer?.name || "")
     const [email, setEmail] = useState(customer?.email || "")

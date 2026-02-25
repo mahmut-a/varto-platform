@@ -10,7 +10,7 @@ import {
     Animated,
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
-import { getColors, getTypography, spacing, radius, shadow } from "../theme/tokens"
+import { spacing, radius, shadow } from "../theme/tokens"
 import { getVendorProducts } from "../api/client"
 import { useCart } from "../context/CartContext"
 import { useTheme } from "../context/ThemeContext"
@@ -25,9 +25,7 @@ const CATEGORY_MAP: Record<string, { label: string; icon: string }> = {
 }
 
 export default function VendorDetailScreen({ route, navigation }: any) {
-    const { colorScheme } = useTheme()
-    const c = getColors()
-    const t = getTypography()
+    const { colors: c, typography: t } = useTheme()
     const vendor = route.params?.vendor
     const { addItem, cart } = useCart()
 

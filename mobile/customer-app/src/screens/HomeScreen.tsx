@@ -8,10 +8,10 @@ import {
     ActivityIndicator,
     RefreshControl,
     TextInput,
-    useColorScheme,
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
-import { getColors, getTypography, spacing, radius, shadow } from "../theme/tokens"
+import { spacing, radius, shadow } from "../theme/tokens"
+import { useTheme } from "../context/ThemeContext"
 import { getVendors } from "../api/client"
 
 const CATEGORY_MAP: Record<string, { label: string; icon: string }> = {
@@ -24,9 +24,7 @@ const CATEGORY_MAP: Record<string, { label: string; icon: string }> = {
 }
 
 export default function HomeScreen({ navigation }: any) {
-    const scheme = useColorScheme()
-    const c = getColors()
-    const t = getTypography()
+    const { colors: c, typography: t } = useTheme()
 
     const [vendors, setVendors] = useState<any[]>([])
     const [filtered, setFiltered] = useState<any[]>([])

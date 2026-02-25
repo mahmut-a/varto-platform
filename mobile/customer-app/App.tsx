@@ -7,10 +7,16 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack"
 import { SafeAreaProvider } from "react-native-safe-area-context"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { Ionicons } from "@expo/vector-icons"
-import { getColors, setThemeScheme } from "./src/theme/tokens"
 import { setCustomerToken, getMe } from "./src/api/client"
 import { ThemeProvider, useTheme } from "./src/context/ThemeContext"
 import { CartProvider, useCart } from "./src/context/CartContext"
+import {
+    configureNotificationHandler,
+    setupNotificationChannel,
+    registerForPushNotificationsAsync,
+    savePushTokenToBackend,
+    removePushTokenFromBackend,
+} from "./src/api/notifications"
 
 import PhoneLoginScreen from "./src/screens/PhoneLoginScreen"
 import OTPScreen from "./src/screens/OTPScreen"
@@ -29,14 +35,15 @@ const Tab = createBottomTabNavigator()
 
 const STORAGE_KEYS = { token: "@varto_token", customer: "@varto_customer" }
 
+// Bildirim görünümünü ayarla (uygulama açıkken de göster)
+configureNotificationHandler()
+
 // ─── Stack Navigators ───
 function HomeStack() {
-    const { colorScheme } = useTheme()
-    setThemeScheme(colorScheme)
-    const c = getColors()
+    const { colors } = useTheme()
     const headerOpts = {
-        headerStyle: { backgroundColor: c.bg.base },
-        headerTintColor: c.fg.base,
+        headerStyle: { backgroundColor: colors.bg.base },
+        headerTintColor: colors.fg.base,
         headerShadowVisible: false,
         headerTitleStyle: { fontWeight: "600" as const, fontSize: 16 },
     }
@@ -49,11 +56,9 @@ function HomeStack() {
 }
 
 function CartStack({ customer }: { customer: any }) {
-    const { colorScheme } = useTheme()
-    setThemeScheme(colorScheme)
-    const c = getColors()
+    const { colors } = useTheme()
     return (
-        <Stack.Navigator screenOptions={{ headerStyle: { backgroundColor: c.bg.base }, headerTintColor: c.fg.base, headerShadowVisible: false, headerTitleStyle: { fontWeight: "600" as const, fontSize: 16 } }}>
+        <Stack.Navigator screenOptions={{ headerStyle: { backgroundColor: colors.bg.base }, headerTintColor: colors.fg.base, headerShadowVisible: false, headerTitleStyle: { fontWeight: "600" as const, fontSize: 16 } }}>
             <Stack.Screen name="Cart" options={{ title: "Sepet" }}>
                 {(props) => <CartScreen {...props} customer={customer} />}
             </Stack.Screen>
@@ -62,21 +67,17 @@ function CartStack({ customer }: { customer: any }) {
 }
 
 function OrdersStack() {
-    const { colorScheme } = useTheme()
-    setThemeScheme(colorScheme)
-    const c = getColors()
+    const { colors } = useTheme()
     return (
-        <Stack.Navigator screenOptions={{ headerStyle: { backgroundColor: c.bg.base }, headerTintColor: c.fg.base, headerShadowVisible: false, headerTitleStyle: { fontWeight: "600" as const, fontSize: 16 } }}>
+        <Stack.Navigator screenOptions={{ headerStyle: { backgroundColor: colors.bg.base }, headerTintColor: colors.fg.base, headerShadowVisible: false, headerTitleStyle: { fontWeight: "600" as const, fontSize: 16 } }}>
             <Stack.Screen name="OrderTracking" component={OrderTrackingScreen} options={{ title: "Sipariş Takip" }} />
         </Stack.Navigator>
     )
 }
 
 function ProfileStack({ customer, onLogout, onUpdateCustomer }: { customer: any; onLogout: () => void; onUpdateCustomer: (c: any) => void }) {
-    const { colorScheme } = useTheme()
-    setThemeScheme(colorScheme)
-    const c = getColors()
-    const headerOpts = { headerStyle: { backgroundColor: c.bg.base }, headerTintColor: c.fg.base, headerShadowVisible: false, headerTitleStyle: { fontWeight: "600" as const, fontSize: 16 } }
+    const { colors } = useTheme()
+    const headerOpts = { headerStyle: { backgroundColor: colors.bg.base }, headerTintColor: colors.fg.base, headerShadowVisible: false, headerTitleStyle: { fontWeight: "600" as const, fontSize: 16 } }
     return (
         <Stack.Navigator screenOptions={headerOpts}>
             <Stack.Screen name="Profile" options={{ title: "Profilim" }}>
@@ -93,15 +94,18 @@ function ProfileStack({ customer, onLogout, onUpdateCustomer }: { customer: any;
 
 // ─── Inner App (uses contexts) ───
 function AppInner() {
-    const { colorScheme } = useTheme()
-    setThemeScheme(colorScheme)
-    const c = getColors()
+    const { colorScheme, colors } = useTheme()
     const { getCartCount } = useCart()
 
     const [authState, setAuthState] = useState<"loading" | "phone" | "otp" | "register" | "authenticated">("loading")
     const [phone, setPhone] = useState("")
     const [isNewUser, setIsNewUser] = useState(false)
     const [customer, setCustomer] = useState<any>(null)
+
+    // Push notification kanalını ayarla
+    useEffect(() => {
+        setupNotificationChannel()
+    }, [])
 
     // Restore session on startup
     useEffect(() => {
@@ -116,6 +120,8 @@ function AppInner() {
                         const fresh = await getMe()
                         setCustomer(fresh)
                         setAuthState("authenticated")
+                        // Session restore sonrası push token güncelle
+                        registerAndSavePushToken(fresh.id)
                     } catch {
                         await AsyncStorage.multiRemove([STORAGE_KEYS.token, STORAGE_KEYS.customer])
                         setCustomerToken(null)
@@ -145,15 +151,34 @@ function AppInner() {
         } else {
             setAuthState("authenticated")
         }
+        // Push token kaydet
+        registerAndSavePushToken(cust.id)
+    }
+
+    const registerAndSavePushToken = async (customerId: string) => {
+        try {
+            const pushToken = await registerForPushNotificationsAsync()
+            if (pushToken && customerId) {
+                await savePushTokenToBackend(customerId, pushToken)
+            }
+        } catch (err) {
+            console.error("Push token kayıt hatası:", err)
+        }
     }
 
     const handleRegistrationComplete = async (updatedCustomer: any) => {
         setCustomer(updatedCustomer)
         await AsyncStorage.setItem(STORAGE_KEYS.customer, JSON.stringify(updatedCustomer))
         setAuthState("authenticated")
+        // Push token kaydet (kayıt sonrası ilk kez authenticated oluyor)
+        registerAndSavePushToken(updatedCustomer.id)
     }
 
     const handleLogout = async () => {
+        // Push token sil
+        if (customer?.id) {
+            await removePushTokenFromBackend(customer.id)
+        }
         await AsyncStorage.multiRemove([STORAGE_KEYS.token, STORAGE_KEYS.customer])
         setCustomerToken(null)
         setCustomer(null)
@@ -169,11 +194,11 @@ function AppInner() {
         ...(colorScheme === "dark" ? DarkTheme : DefaultTheme),
         colors: {
             ...(colorScheme === "dark" ? DarkTheme.colors : DefaultTheme.colors),
-            primary: c.interactive,
-            background: c.bg.base,
-            card: c.bg.base,
-            text: c.fg.base,
-            border: c.border.base,
+            primary: colors.interactive,
+            background: colors.bg.base,
+            card: colors.bg.base,
+            text: colors.fg.base,
+            border: colors.border.base,
         },
     }
 
@@ -181,8 +206,8 @@ function AppInner() {
     if (authState === "loading") {
         return (
             <SafeAreaProvider>
-                <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: c.bg.base }}>
-                    <ActivityIndicator size="large" color={c.interactive} />
+                <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: colors.bg.base }}>
+                    <ActivityIndicator size="large" color={colors.interactive} />
                 </View>
                 <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
             </SafeAreaProvider>
@@ -226,9 +251,9 @@ function AppInner() {
                 <Tab.Navigator
                     screenOptions={({ route }) => ({
                         headerShown: false,
-                        tabBarStyle: { backgroundColor: c.bg.base, borderTopColor: c.border.base },
-                        tabBarActiveTintColor: c.interactive,
-                        tabBarInactiveTintColor: c.fg.muted,
+                        tabBarStyle: { backgroundColor: colors.bg.base, borderTopColor: colors.border.base },
+                        tabBarActiveTintColor: colors.interactive,
+                        tabBarInactiveTintColor: colors.fg.muted,
                         tabBarLabelStyle: { fontSize: 11, fontWeight: "500" },
                         tabBarIcon: ({ color, size }) => {
                             const icons: Record<string, string> = {
@@ -241,11 +266,11 @@ function AppInner() {
                             return <Ionicons name={(icons[route.name] || "ellipse-outline") as any} size={size} color={color} />
                         },
                         tabBarBadge: route.name === "CartTab" && cartCount > 0 ? cartCount : undefined,
-                        tabBarBadgeStyle: route.name === "CartTab" ? { backgroundColor: c.interactive, color: c.fg.on_color, fontSize: 10, minWidth: 18, height: 18, lineHeight: 18 } : undefined,
+                        tabBarBadgeStyle: route.name === "CartTab" ? { backgroundColor: colors.interactive, color: colors.fg.on_color, fontSize: 10, minWidth: 18, height: 18, lineHeight: 18 } : undefined,
                     })}
                 >
                     <Tab.Screen name="HomeTab" component={HomeStack} options={{ title: "İşletmeler" }} />
-                    <Tab.Screen name="ListingsTab" component={ListingsScreen} options={{ title: "İlanlar", headerShown: true, headerStyle: { backgroundColor: c.bg.base }, headerTintColor: c.fg.base, headerShadowVisible: false, headerTitle: "İlanlar" }} />
+                    <Tab.Screen name="ListingsTab" component={ListingsScreen} options={{ title: "İlanlar", headerShown: true, headerStyle: { backgroundColor: colors.bg.base }, headerTintColor: colors.fg.base, headerShadowVisible: false, headerTitle: "İlanlar" }} />
                     <Tab.Screen name="CartTab" options={{ title: "Sepet" }}>
                         {() => <CartStack customer={customer} />}
                     </Tab.Screen>

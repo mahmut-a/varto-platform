@@ -7,10 +7,11 @@ import {
     TouchableOpacity,
     ActivityIndicator,
     RefreshControl,
-    useColorScheme,
+
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
-import { getColors, getTypography, spacing, radius, shadow } from "../theme/tokens"
+import { spacing, radius, shadow } from "../theme/tokens"
+import { useTheme } from "../context/ThemeContext"
 import { getListings } from "../api/client"
 
 const CATEGORY_MAP: Record<string, string> = {
@@ -22,8 +23,7 @@ const CATEGORY_MAP: Record<string, string> = {
 }
 
 export default function ListingsScreen() {
-    const c = getColors()
-    const t = getTypography()
+    const { colors: c, typography: t } = useTheme()
 
     const [listings, setListings] = useState<any[]>([])
     const [loading, setLoading] = useState(true)

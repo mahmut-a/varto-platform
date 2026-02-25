@@ -7,17 +7,17 @@ import {
     TextInput,
     TouchableOpacity,
     ActivityIndicator,
-    useColorScheme,
+
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
-import { getColors, getTypography, statusConfig, getStatusColor, spacing, radius } from "../theme/tokens"
+import { statusConfig, getStatusColor, spacing, radius } from "../theme/tokens"
+import { useTheme } from "../context/ThemeContext"
 import { getOrder } from "../api/client"
 
 const STATUS_STEPS = ["pending", "confirmed", "preparing", "ready", "assigned", "accepted", "delivering", "delivered"]
 
 export default function OrderTrackingScreen({ route }: any) {
-    const c = getColors()
-    const t = getTypography()
+    const { colors: c, typography: t, colorScheme } = useTheme()
 
     const [orderId, setOrderId] = useState(route.params?.orderId || "")
     const [order, setOrder] = useState<any>(null)
@@ -80,13 +80,13 @@ export default function OrderTrackingScreen({ route }: any) {
             {order && !loading && (
                 <>
                     {/* Status Badge */}
-                    <View style={[styles.statusBadge, { backgroundColor: getStatusColor(order.varto_status).bg }]}>
+                    <View style={[styles.statusBadge, { backgroundColor: getStatusColor(colorScheme, order.varto_status).bg }]}>
                         <Ionicons
                             name={(statusConfig[order.varto_status as keyof typeof statusConfig]?.icon || "help-outline") as any}
                             size={20}
-                            color={getStatusColor(order.varto_status).fg}
+                            color={getStatusColor(colorScheme, order.varto_status).fg}
                         />
-                        <Text style={[styles.statusText, { color: getStatusColor(order.varto_status).fg }]}>
+                        <Text style={[styles.statusText, { color: getStatusColor(colorScheme, order.varto_status).fg }]}>
                             {statusConfig[order.varto_status as keyof typeof statusConfig]?.label || order.varto_status}
                         </Text>
                     </View>

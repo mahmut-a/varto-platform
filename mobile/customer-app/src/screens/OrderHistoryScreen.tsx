@@ -9,7 +9,7 @@ import {
     RefreshControl,
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
-import { getColors, getTypography, spacing, radius, statusColors, statusLabels } from "../theme/tokens"
+import { getStatusColor, statusLabels, spacing, radius } from "../theme/tokens"
 import { getCustomerOrders } from "../api/client"
 import { useTheme } from "../context/ThemeContext"
 
@@ -17,9 +17,7 @@ export default function OrderHistoryScreen({ navigation, customer }: {
     navigation: any
     customer: any
 }) {
-    const { colorScheme } = useTheme()
-    const c = getColors()
-    const t = getTypography()
+    const { colors: c, typography: t, colorScheme } = useTheme()
 
     const [orders, setOrders] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
@@ -59,7 +57,7 @@ export default function OrderHistoryScreen({ navigation, customer }: {
 
     const renderOrder = ({ item }: { item: any }) => {
         const status = item.varto_status || "pending"
-        const sc = statusColors[status as keyof typeof statusColors] || statusColors.pending
+        const sc = getStatusColor(colorScheme, status)
 
         return (
             <TouchableOpacity
@@ -73,7 +71,7 @@ export default function OrderHistoryScreen({ navigation, customer }: {
                         <Text style={[t.small, { marginTop: 2 }]}>{formatDate(item.created_at)}</Text>
                     </View>
                     <View style={[styles.statusBadge, { backgroundColor: sc.bg }]}>
-                        <Text style={[styles.statusText, { color: sc.text }]}>
+                        <Text style={[styles.statusText, { color: sc.fg }]}>
                             {statusLabels[status as keyof typeof statusLabels] || status}
                         </Text>
                     </View>

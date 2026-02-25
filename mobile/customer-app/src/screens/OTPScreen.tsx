@@ -9,10 +9,11 @@ import {
     Alert,
     KeyboardAvoidingView,
     Platform,
-    useColorScheme,
+
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
-import { getColors, getTypography, spacing, radius } from "../theme/tokens"
+import { spacing, radius } from "../theme/tokens"
+import { useTheme } from "../context/ThemeContext"
 import { verifyOtp } from "../api/client"
 
 const OTP_LENGTH = 6
@@ -22,8 +23,7 @@ export default function OTPScreen({ phone, onVerified, onBack }: {
     onVerified: (customer: any, token: string) => void
     onBack: () => void
 }) {
-    const c = getColors()
-    const t = getTypography()
+    const { colors: c, typography: t } = useTheme()
 
     const [otp, setOtp] = useState(Array(OTP_LENGTH).fill(""))
     const [loading, setLoading] = useState(false)

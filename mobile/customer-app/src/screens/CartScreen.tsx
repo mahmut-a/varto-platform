@@ -11,15 +11,13 @@ import {
     Platform,
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
-import { getColors, getTypography, spacing, radius, shadow } from "../theme/tokens"
+import { spacing, radius, shadow } from "../theme/tokens"
 import { createOrder } from "../api/client"
 import { useCart } from "../context/CartContext"
 import { useTheme } from "../context/ThemeContext"
 
 export default function CartScreen({ navigation, customer }: any) {
-    const { colorScheme } = useTheme()
-    const c = getColors()
-    const t = getTypography()
+    const { colors: c, typography: t } = useTheme()
     const { cart, updateQuantity, clearVendor, clearAll } = useCart()
 
     const [address, setAddress] = useState(customer?.address || "")

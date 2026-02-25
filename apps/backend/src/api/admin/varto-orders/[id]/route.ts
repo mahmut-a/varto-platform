@@ -7,6 +7,8 @@ import { VENDOR_MODULE } from "../../../../modules/vendor"
 import VendorModuleService from "../../../../modules/vendor/service"
 import { VARTO_NOTIFICATION_MODULE } from "../../../../modules/varto-notification"
 import VartoNotificationModuleService from "../../../../modules/varto-notification/service"
+import { CUSTOMER_MODULE } from "../../../../modules/customer"
+import CustomerModuleService from "../../../../modules/customer/service"
 
 // ── Expo Push Notification gönderici ──
 async function sendExpoPushNotification(pushToken: string, title: string, body: string, data?: any) {
@@ -165,6 +167,117 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
         }
 
         res.json({ varto_order: updated })
+
+        // ── Teslimat başladığında müşteriye bildirim gönder ──
+        if (body.varto_status === "delivering" && previousStatus !== "delivering") {
+            try {
+                const customerService: CustomerModuleService = req.scope.resolve(CUSTOMER_MODULE)
+                const courierService: CourierModuleService = req.scope.resolve(COURIER_MODULE)
+                const notificationService: VartoNotificationModuleService = req.scope.resolve(VARTO_NOTIFICATION_MODULE)
+
+                if (updated.customer_id) {
+                    const customer = await customerService.retrieveCustomer(updated.customer_id)
+                    let courierName = "Kurye"
+                    if (updated.courier_id) {
+                        try {
+                            const courier = await courierService.retrieveCourier(updated.courier_id)
+                            courierName = courier.name || "Kurye"
+                        } catch (_) { }
+                    }
+
+                    const notifTitle = "🛵 Siparişiniz Yolda!"
+                    const notifBody = `${courierName} siparişinizi teslim etmek üzere yola çıktı.`
+
+                    // Push notification gönder
+                    if (customer.push_token) {
+                        try {
+                            await sendExpoPushNotification(
+                                customer.push_token,
+                                notifTitle,
+                                notifBody,
+                                {
+                                    type: "delivery_started",
+                                    order_id: updated.id,
+                                    courier_name: courierName,
+                                }
+                            )
+                        } catch (pushErr: any) {
+                            console.error(`Customer ${customer.id} push hatası:`, pushErr?.message || pushErr)
+                        }
+                    }
+
+                    // DB'ye bildirim kaydet
+                    try {
+                        await notificationService.createVartoNotifications({
+                            title: notifTitle,
+                            message: notifBody,
+                            type: "order",
+                            recipient_type: "customer",
+                            recipient_id: customer.id,
+                            is_read: false,
+                            reference_id: updated.id,
+                            reference_type: "varto_order",
+                        })
+                    } catch (dbErr: any) {
+                        console.error(`Customer bildirim DB hatası:`, dbErr?.message || dbErr)
+                    }
+
+                    console.log(`Sipariş ${updated.id} teslimat başladı, müşteriye bildirim gönderildi`)
+                }
+            } catch (notifErr: any) {
+                console.error("Müşteri bildirim hatası:", notifErr?.message || notifErr)
+            }
+        }
+
+        // ── Sipariş teslim edildiğinde müşteriye bildirim gönder ──
+        if (body.varto_status === "delivered" && previousStatus !== "delivered") {
+            try {
+                const customerService: CustomerModuleService = req.scope.resolve(CUSTOMER_MODULE)
+                const notificationService: VartoNotificationModuleService = req.scope.resolve(VARTO_NOTIFICATION_MODULE)
+
+                if (updated.customer_id) {
+                    const customer = await customerService.retrieveCustomer(updated.customer_id)
+
+                    const notifTitle = "✅ Siparişiniz Teslim Edildi!"
+                    const notifBody = "Siparişiniz başarıyla teslim edildi. Afiyet olsun!"
+
+                    if (customer.push_token) {
+                        try {
+                            await sendExpoPushNotification(
+                                customer.push_token,
+                                notifTitle,
+                                notifBody,
+                                {
+                                    type: "delivery_completed",
+                                    order_id: updated.id,
+                                }
+                            )
+                        } catch (pushErr: any) {
+                            console.error(`Customer ${customer.id} teslim push hatası:`, pushErr?.message || pushErr)
+                        }
+                    }
+
+                    try {
+                        await notificationService.createVartoNotifications({
+                            title: notifTitle,
+                            message: notifBody,
+                            type: "order",
+                            recipient_type: "customer",
+                            recipient_id: customer.id,
+                            is_read: false,
+                            reference_id: updated.id,
+                            reference_type: "varto_order",
+                        })
+                    } catch (dbErr: any) {
+                        console.error(`Customer teslim bildirim DB hatası:`, dbErr?.message || dbErr)
+                    }
+
+                    console.log(`Sipariş ${updated.id} teslim edildi, müşteriye bildirim gönderildi`)
+                }
+            } catch (notifErr: any) {
+                console.error("Müşteri teslim bildirim hatası:", notifErr?.message || notifErr)
+            }
+        }
     } catch (err: any) {
         console.error("Admin update order error:", err?.message || err)
         res.status(500).json({ message: err?.message || "Sipariş güncellenemedi" })

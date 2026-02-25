@@ -7,6 +7,7 @@ const Customer = model.define("varto_customer", {
     email: model.text().nullable(),
     address: model.text().nullable(),
     is_active: model.boolean().default(true),
+    push_token: model.text().nullable(),
     metadata: model.json().nullable(),
 })
 

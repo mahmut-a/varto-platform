@@ -7,11 +7,12 @@ import {
     TouchableOpacity,
     ActivityIndicator,
     Alert,
-    useColorScheme,
+
 } from "react-native"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { Ionicons } from "@expo/vector-icons"
-import { getColors, getTypography, spacing, radius } from "../theme/tokens"
+import { spacing, radius } from "../theme/tokens"
+import { useTheme } from "../context/ThemeContext"
 import { getVendors } from "../api/client"
 
 const FAVORITES_KEY = "@varto_favorites"
@@ -39,8 +40,7 @@ export const isFavorite = async (vendorId: string): Promise<boolean> => {
 }
 
 export default function FavoritesScreen({ navigation }: any) {
-    const c = getColors()
-    const t = getTypography()
+    const { colors: c, typography: t } = useTheme()
 
     const [favorites, setFavorites] = useState<any[]>([])
     const [loading, setLoading] = useState(true)

@@ -1,0 +1,217 @@
+﻿=== STEP 1: Pull latest code ===
+Updating f93efaf..bb264e0
+Fast-forward
+ .../src/api/admin/varto-orders/[id]/route.ts       |   6 +-
+ deploy_backend.sh                                  |  38 ++++
+ deploy_result.txt                                  | 210 +++++++++++++++++++++
+ 3 files changed, 251 insertions(+), 3 deletions(-)
+ create mode 100644 deploy_backend.sh
+ create mode 100644 deploy_result.txt
+=== STEP 2: Install dependencies ===
+Scope: all 2 workspace projects
+Lockfile is up to date, resolution step is skipped
+Progress: resolved 0, reused 1, downloaded 0, added 0
+Progress: resolved 0, reused 40, downloaded 0, added 0
+Progress: resolved 0, reused 71, downloaded 0, added 0
+Packages: -71
+-----------------------------------------------------------------------
+Progress: resolved 0, reused 71, downloaded 0, added 0, done
+
+Ôò¡ Warning ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔò«
+Ôöé                                                                              Ôöé
+Ôöé   Ignored build scripts: @medusajs/telemetry@2.13.1, @swc/core@1.15.11,      Ôöé
+Ôöé   esbuild@0.21.5, msgpackr-extract@3.0.3, protobufjs@7.5.4.                  Ôöé
+Ôöé   Run "pnpm approve-builds" to pick which dependencies should be allowed     Ôöé
+Ôöé   to run scripts.                                                            Ôöé
+Ôöé                                                                              Ôöé
+Ôò░ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔò»
+Done in 5.2s using pnpm v10.29.2
+=== STEP 3: Run migrations ===
+[32minfo[39m:    No link to load from /var/www/varto-platform/node_modules/@medusajs/draft-order/.medusa/server/src/links. skipped.
+[32minfo[39m:    Running migrations...
+[32minfo[39m:    
+[32minfo[39m:    
+[32minfo[39m:    MODULE: stock_location
+[32minfo[39m:    Skipped. Database is up-to-date for module.
+[32minfo[39m:    
+[32minfo[39m:    
+[32minfo[39m:    MODULE: inventory
+[32minfo[39m:    Skipped. Database is up-to-date for module.
+[32minfo[39m:    
+[32minfo[39m:    
+[32minfo[39m:    MODULE: product
+[32minfo[39m:    Skipped. Database is up-to-date for module.
+[32minfo[39m:    
+[32minfo[39m:    
+[32minfo[39m:    MODULE: pricing
+[32minfo[39m:    Skipped. Database is up-to-date for module.
+[32minfo[39m:    
+[32minfo[39m:    
+[32minfo[39m:    MODULE: promotion
+[32minfo[39m:    Skipped. Database is up-to-date for module.
+[32minfo[39m:    
+[32minfo[39m:    
+[32minfo[39m:    MODULE: customer
+[32minfo[39m:    Skipped. Database is up-to-date for module.
+[32minfo[39m:    
+[32minfo[39m:    
+[32minfo[39m:    MODULE: sales_channel
+[32minfo[39m:    Skipped. Database is up-to-date for module.
+[32minfo[39m:    
+[32minfo[39m:    
+[32minfo[39m:    MODULE: cart
+[32minfo[39m:    Skipped. Database is up-to-date for module.
+[32minfo[39m:    
+[32minfo[39m:    
+[32minfo[39m:    MODULE: region
+[32minfo[39m:    Skipped. Database is up-to-date for module.
+[32minfo[39m:    
+[32minfo[39m:    
+[32minfo[39m:    MODULE: api_key
+[32minfo[39m:    Skipped. Database is up-to-date for module.
+[32minfo[39m:    
+[32minfo[39m:    
+[32minfo[39m:    MODULE: store
+[32minfo[39m:    Skipped. Database is up-to-date for module.
+[32minfo[39m:    
+[32minfo[39m:    
+[32minfo[39m:    MODULE: tax
+[32minfo[39m:    Skipped. Database is up-to-date for module.
+[32minfo[39m:    
+[32minfo[39m:    
+[32minfo[39m:    MODULE: currency
+[32minfo[39m:    Skipped. Database is up-to-date for module.
+[32minfo[39m:    
+[32minfo[39m:    
+[32minfo[39m:    MODULE: payment
+[32minfo[39m:    Skipped. Database is up-to-date for module.
+[32minfo[39m:    
+[32minfo[39m:    
+[32minfo[39m:    MODULE: order
+[32minfo[39m:    Skipped. Database is up-to-date for module.
+[32minfo[39m:    
+[32minfo[39m:    
+[32minfo[39m:    MODULE: settings
+[32minfo[39m:    Skipped. Database is up-to-date for module.
+[32minfo[39m:    
+[32minfo[39m:    
+[32minfo[39m:    MODULE: auth
+[32minfo[39m:    Skipped. Database is up-to-date for module.
+[32minfo[39m:    
+[32minfo[39m:    
+[32minfo[39m:    MODULE: auth
+[32minfo[39m:    Skipped. Database is up-to-date for module.
+[32minfo[39m:    
+[32minfo[39m:    
+[32minfo[39m:    MODULE: auth
+[32minfo[39m:    Skipped. Database is up-to-date for module.
+[32minfo[39m:    
+[32minfo[39m:    
+[32minfo[39m:    MODULE: user
+[32minfo[39m:    Skipped. Database is up-to-date for module.
+[32minfo[39m:    
+[32minfo[39m:    
+[32minfo[39m:    MODULE: fulfillment
+[32minfo[39m:    Skipped. Database is up-to-date for module.
+[32minfo[39m:    
+[32minfo[39m:    
+[32minfo[39m:    MODULE: fulfillment
+[32minfo[39m:    Skipped. Database is up-to-date for module.
+[32minfo[39m:    
+[32minfo[39m:    
+[32minfo[39m:    MODULE: fulfillment
+[32minfo[39m:    Skipped. Database is up-to-date for module.
+[32minfo[39m:    
+[32minfo[39m:    
+[32minfo[39m:    MODULE: notification
+[32minfo[39m:    Skipped. Database is up-to-date for module.
+[32minfo[39m:    
+[32minfo[39m:    
+[32minfo[39m:    MODULE: notification
+[32minfo[39m:    Skipped. Database is up-to-date for module.
+[32minfo[39m:    
+[32minfo[39m:    
+[32minfo[39m:    MODULE: notification
+[32minfo[39m:    Skipped. Database is up-to-date for module.
+[32minfo[39m:    
+[32minfo[39m:    
+[32minfo[39m:    MODULE: cache
+[32minfo[39m:    Skipped. Database is up-to-date for module.
+[32minfo[39m:    
+[32minfo[39m:    
+[32minfo[39m:    MODULE: event_bus
+[32minfo[39m:    Skipped. Database is up-to-date for module.
+[32minfo[39m:    
+[32minfo[39m:    
+[32minfo[39m:    MODULE: workflows
+[32minfo[39m:    Skipped. Database is up-to-date for module.
+[32minfo[39m:    
+[32minfo[39m:    
+[32minfo[39m:    MODULE: locking
+[32minfo[39m:    Skipped. Database is up-to-date for module.
+[32minfo[39m:    
+[32minfo[39m:    
+[32minfo[39m:    MODULE: file
+[32minfo[39m:    Skipped. Database is up-to-date for module.
+[32minfo[39m:    
+[32minfo[39m:    
+[32minfo[39m:    MODULE: file
+[32minfo[39m:    Skipped. Database is up-to-date for module.
+[32minfo[39m:    
+[32minfo[39m:    
+[32minfo[39m:    MODULE: file
+[32minfo[39m:    Skipped. Database is up-to-date for module.
+[32minfo[39m:    
+[32minfo[39m:    
+[32minfo[39m:    MODULE: vendor
+[32minfo[39m:    Skipped. Database is up-to-date for module.
+[32minfo[39m:    
+[32minfo[39m:    
+[32minfo[39m:    MODULE: courier
+[32minfo[39m:    Skipped. Database is up-to-date for module.
+[32minfo[39m:    
+[32minfo[39m:    
+[32minfo[39m:    MODULE: listing
+[32minfo[39m:    Skipped. Database is up-to-date for module.
+[32minfo[39m:    
+[32minfo[39m:    
+[32minfo[39m:    MODULE: appointment
+[32minfo[39m:    Skipped. Database is up-to-date for module.
+[32minfo[39m:    
+[32minfo[39m:    
+[32minfo[39m:    MODULE: order_extension
+[32minfo[39m:    Skipped. Database is up-to-date for module.
+[32minfo[39m:    
+[32minfo[39m:    
+[32minfo[39m:    MODULE: varto_notification
+[32minfo[39m:    Skipped. Database is up-to-date for module.
+[32minfo[39m:    
+[32minfo[39m:    
+[32minfo[39m:    MODULE: customerModule
+[32minfo[39m:    Skipped. Database is up-to-date for module.
+[32minfo[39m:    
+[32minfo[39m:    
+[32minfo[39m:    MODULE: vendorProduct
+[32minfo[39m:    Skipped. Database is up-to-date for module.
+[32minfo[39m:    
+[32minfo[39m:    Migrations completed
+[32minfo[39m:    
+[32minfo[39m:    Syncing links...
+[32minfo[39m:    Database already up-to-date
+[32minfo[39m:    
+[32minfo[39m:    No link to load from /var/www/varto-platform/node_modules/@medusajs/draft-order/.medusa/server/src/links. skipped.
+[33mwarn[39m:    Local Event Bus installed. This is not recommended for production.
+[32minfo[39m:    Locking module: Using "in-memory" as default.
+[32minfo[39m:    No pending migration scripts to execute
+=== STEP 4: Build ===
+[32minfo[39m:    Generating types...
+[32minfo[39m:    No link to load from /var/www/varto-platform/node_modules/@medusajs/draft-order/.medusa/server/src/links. skipped.
+[32minfo[39m:    Types generated successfully
+[32minfo[39m:    Starting build...
+[32minfo[39m:    Compiling backend source...
+[32minfo[39m:    Removing existing ".medusa/server" folder
+[32minfo[39m:    Compiling frontend source...
+[32minfo[39m:    Backend build completed successfully (8.66s)
+[32minfo[39m:    Frontend build completed successfully (40.67s)
+=== STEP 5: Copy env files ===
+=== STEP 6: Install server deps ===

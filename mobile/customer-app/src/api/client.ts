@@ -22,7 +22,7 @@ const BASE_URL = getBaseUrl()
 
 const PUBLISHABLE_API_KEY = "pk_3e6b05a597fd3200651f1fc61bf7551c1b7070556a6d238be6ae8fef5fdf5c1d"
 
-const api = axios.create({
+export const api = axios.create({
     baseURL: BASE_URL,
     headers: {
         "Content-Type": "application/json",

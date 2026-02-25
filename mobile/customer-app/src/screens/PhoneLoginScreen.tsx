@@ -9,15 +9,15 @@ import {
     Alert,
     KeyboardAvoidingView,
     Platform,
-    useColorScheme,
+
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
-import { getColors, getTypography, spacing, radius } from "../theme/tokens"
+import { spacing, radius } from "../theme/tokens"
+import { useTheme } from "../context/ThemeContext"
 import { sendOtp, getApiBaseUrl } from "../api/client"
 
 export default function PhoneLoginScreen({ onOtpSent }: { onOtpSent: (phone: string, isNew: boolean) => void }) {
-    const c = getColors()
-    const t = getTypography()
+    const { colors: c, typography: t } = useTheme()
 
     const [phone, setPhone] = useState("")
     const [loading, setLoading] = useState(false)

@@ -4,7 +4,7 @@
     "slug": "varto-customer",
     "version": "1.0.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
       "backgroundColor": "#ffffff"
@@ -21,8 +21,27 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.varto.customer",
-      "usesCleartextTraffic": true
+      "usesCleartextTraffic": true,
+      "googleServicesFile": "./google-services.json"
     },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#6366F1",
+          "defaultChannel": "orders"
+        }
+      ]
+    ],
     "extra": {
       "eas": {
         "projectId": "224138fb-2204-4e56-b926-277b607c3338"

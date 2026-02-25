@@ -12,15 +12,15 @@ import {
     Platform,
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
-import { getColors, getTypography, spacing, radius } from "../theme/tokens"
+import { spacing, radius } from "../theme/tokens"
+import { useTheme } from "../context/ThemeContext"
 import { updateProfile } from "../api/client"
 
 export default function RegisterScreen({ customer, onComplete }: {
     customer: any
     onComplete: (updatedCustomer: any) => void
 }) {
-    const c = getColors()
-    const t = getTypography()
+    const { colors: c, typography: t } = useTheme()
 
     const [name, setName] = useState("")
     const [email, setEmail] = useState("")
