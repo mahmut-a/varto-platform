@@ -6,7 +6,7 @@ export const GET = async (req: MedusaRequest, res: MedusaResponse) => {
     const orderExtService: OrderExtensionModuleService = req.scope.resolve(ORDER_EXTENSION_MODULE)
     const customerId = req.params.id
 
-    const varto_orders = await orderExtService.listVartoOrders(
+    const varto_orders = await (orderExtService as any).listVartoOrders(
         { customer_id: customerId },
         { relations: ["items"] }
     )

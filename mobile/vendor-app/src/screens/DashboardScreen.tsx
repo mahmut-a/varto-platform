@@ -6,14 +6,15 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context"
 import { Ionicons } from "@expo/vector-icons"
 import { colors, spacing, radius, typography } from "../theme/tokens"
-import { getVendorOrders, getCurrentVendorId } from "../api/client"
+import { getVendorOrders } from "../api/client"
+import { useFocusEffect } from "@react-navigation/native"
 
 interface Props {
     vendor: any
     navigation?: any
 }
 
-export default function DashboardScreen({ vendor }: Props) {
+export default function DashboardScreen({ vendor, navigation }: Props) {
     const [orders, setOrders] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
     const [refreshing, setRefreshing] = useState(false)
@@ -30,23 +31,30 @@ export default function DashboardScreen({ vendor }: Props) {
         }
     }, [])
 
-    useEffect(() => { loadData() }, [loadData])
+    useFocusEffect(
+        useCallback(() => {
+            loadData()
+        }, [loadData])
+    )
 
     const onRefresh = () => { setRefreshing(true); loadData() }
 
-    // İstatistikler
+    // İstatistikler — varto_status kullan
     const today = new Date().toISOString().split("T")[0]
     const todayOrders = orders.filter(o => o.created_at?.startsWith(today))
-    const pendingOrders = orders.filter(o => o.status === "pending")
-    const preparingOrders = orders.filter(o => o.status === "preparing")
-    const completedToday = todayOrders.filter(o => o.status === "delivered" || o.status === "completed")
-    const todayRevenue = completedToday.reduce((sum: number, o: any) => sum + (o.total || 0), 0)
+    const pendingOrders = orders.filter(o => o.varto_status === "pending")
+    const preparingOrders = orders.filter(o => o.varto_status === "preparing" || o.varto_status === "confirmed")
+    const completedToday = todayOrders.filter(o => o.varto_status === "delivered")
+    const todayRevenue = completedToday.reduce((sum: number, o: any) => {
+        const itemsTotal = (o.items || []).reduce((s: number, i: any) => s + (Number(i.total_price) || 0), 0)
+        return sum + itemsTotal
+    }, 0)
 
     const stats = [
         { icon: "time-outline" as const, label: "Bekleyen", value: pendingOrders.length, color: colors.tag.orange },
         { icon: "flame-outline" as const, label: "Hazırlanan", value: preparingOrders.length, color: colors.tag.blue },
         { icon: "checkmark-circle-outline" as const, label: "Bugün Teslim", value: completedToday.length, color: colors.tag.green },
-        { icon: "cash-outline" as const, label: "Bugün Gelir", value: `₺${todayRevenue}`, color: colors.tag.purple },
+        { icon: "cash-outline" as const, label: "Bugün Gelir", value: `₺${todayRevenue.toFixed(0)}`, color: colors.tag.purple },
     ]
 
     if (loading) {
@@ -89,31 +97,58 @@ export default function DashboardScreen({ vendor }: Props) {
 
                 {/* Son Siparişler */}
                 <View style={s.section}>
-                    <Text style={s.sectionTitle}>Son Siparişler</Text>
+                    <View style={s.sectionHeader}>
+                        <Text style={s.sectionTitle}>Son Siparişler</Text>
+                        {orders.length > 0 && (
+                            <TouchableOpacity onPress={() => navigation?.navigate("Siparişler")}>
+                                <Text style={s.seeAll}>Tümünü Gör →</Text>
+                            </TouchableOpacity>
+                        )}
+                    </View>
                     {orders.length === 0 ? (
                         <View style={s.emptyCard}>
                             <Ionicons name="receipt-outline" size={36} color={colors.fg.muted} />
                             <Text style={s.emptyText}>Henüz sipariş yok</Text>
                         </View>
                     ) : (
-                        orders.slice(0, 5).map((order: any) => (
-                            <View key={order.id} style={s.orderCard}>
-                                <View style={s.orderTop}>
-                                    <Text style={s.orderId}>#{order.id?.slice(-6)}</Text>
-                                    <View style={[s.statusBadge, { backgroundColor: getStatusColor(order.status).bg }]}>
-                                        <Text style={[s.statusText, { color: getStatusColor(order.status).fg }]}>
-                                            {getStatusLabel(order.status)}
-                                        </Text>
+                        orders.slice(0, 5).map((order: any) => {
+                            const itemsTotal = (order.items || []).reduce(
+                                (sum: number, i: any) => sum + (Number(i.total_price) || 0), 0
+                            )
+                            return (
+                                <TouchableOpacity
+                                    key={order.id}
+                                    style={s.orderCard}
+                                    activeOpacity={0.7}
+                                    onPress={() => navigation?.navigate("Siparişler", {
+                                        screen: "OrderDetail",
+                                        params: { orderId: order.id },
+                                    })}
+                                >
+                                    <View style={s.orderTop}>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={s.orderId}>#{order.id?.slice(-6)}</Text>
+                                            {order.customer_name ? (
+                                                <Text style={s.customerName}>{order.customer_name}</Text>
+                                            ) : order.customer_phone ? (
+                                                <Text style={s.customerName}>{order.customer_phone}</Text>
+                                            ) : null}
+                                        </View>
+                                        <View style={[s.statusBadge, { backgroundColor: getStatusColor(order.varto_status).bg }]}>
+                                            <Text style={[s.statusText, { color: getStatusColor(order.varto_status).fg }]}>
+                                                {getStatusLabel(order.varto_status)}
+                                            </Text>
+                                        </View>
                                     </View>
-                                </View>
-                                <View style={s.orderBottom}>
-                                    <Text style={s.orderInfo}>
-                                        {order.items?.length || 0} ürün
-                                    </Text>
-                                    <Text style={s.orderPrice}>₺{order.total || 0}</Text>
-                                </View>
-                            </View>
-                        ))
+                                    <View style={s.orderBottom}>
+                                        <Text style={s.orderInfo}>
+                                            {order.items?.length || 0} ürün
+                                        </Text>
+                                        <Text style={s.orderPrice}>₺{itemsTotal.toFixed(0)}</Text>
+                                    </View>
+                                </TouchableOpacity>
+                            )
+                        })
                     )}
                 </View>
             </ScrollView>
@@ -127,8 +162,10 @@ function getStatusColor(status: string) {
         case "confirmed": return colors.tag.blue
         case "preparing": return colors.tag.purple
         case "ready": return colors.tag.green
-        case "delivered":
-        case "completed": return colors.tag.green
+        case "assigned":
+        case "accepted": return colors.tag.blue
+        case "delivering": return colors.tag.purple
+        case "delivered": return colors.tag.green
         case "cancelled": return colors.tag.red
         default: return colors.tag.neutral
     }
@@ -140,8 +177,10 @@ function getStatusLabel(status: string) {
         case "confirmed": return "Onaylandı"
         case "preparing": return "Hazırlanıyor"
         case "ready": return "Hazır"
-        case "delivered": return "Teslim"
-        case "completed": return "Tamamlandı"
+        case "assigned": return "Atandı"
+        case "accepted": return "Kabul Edildi"
+        case "delivering": return "Teslimatta"
+        case "delivered": return "Teslim Edildi"
         case "cancelled": return "İptal"
         default: return status
     }
@@ -181,7 +220,12 @@ const s = StyleSheet.create({
     statValue: { ...typography.h1, fontSize: 24, marginBottom: 2 },
     statLabel: { ...typography.caption },
     section: { marginBottom: spacing.xxl },
-    sectionTitle: { ...typography.h2, marginBottom: spacing.md },
+    sectionHeader: {
+        flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+        marginBottom: spacing.md,
+    },
+    sectionTitle: { ...typography.h2 },
+    seeAll: { ...typography.small, color: colors.interactive, fontWeight: "600" },
     emptyCard: {
         backgroundColor: colors.bg.base,
         borderRadius: radius.lg,
@@ -198,10 +242,11 @@ const s = StyleSheet.create({
         borderWidth: 1, borderColor: colors.border.base,
     },
     orderTop: {
-        flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+        flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start",
         marginBottom: spacing.sm,
     },
     orderId: { ...typography.h3, fontFamily: "monospace" },
+    customerName: { ...typography.small, color: colors.fg.muted, marginTop: 2 },
     statusBadge: {
         paddingHorizontal: spacing.sm, paddingVertical: spacing.xs,
         borderRadius: radius.sm,

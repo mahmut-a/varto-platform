@@ -8,7 +8,7 @@ export const GET = async (req: MedusaRequest, res: MedusaResponse) => {
     if (req.query.vendor_id) {
         filters.vendor_id = req.query.vendor_id
     }
-    const varto_orders = await orderExtService.listVartoOrders(filters, {
+    const varto_orders = await (orderExtService as any).listVartoOrders(filters, {
         relations: ["items"],
         order: { created_at: "DESC" },
     })
@@ -17,6 +17,6 @@ export const GET = async (req: MedusaRequest, res: MedusaResponse) => {
 
 export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
     const orderExtService: OrderExtensionModuleService = req.scope.resolve(ORDER_EXTENSION_MODULE)
-    const varto_order = await orderExtService.createVartoOrders(req.body as any)
+    const varto_order = await (orderExtService as any).createVartoOrders(req.body as any)
     res.status(201).json({ varto_order })
 }

@@ -44,7 +44,7 @@ export const GET = async (req: MedusaRequest, res: MedusaResponse) => {
             filters.customer_id = req.query.customer_id
         }
 
-        const varto_orders = await orderExtService.listVartoOrders(filters, {
+        const varto_orders = await (orderExtService as any).listVartoOrders(filters, {
             relations: ["items"],
             order: { created_at: "DESC" },
         })
@@ -69,9 +69,10 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
         }
 
         // Sipariş oluştur
-        const varto_order = await orderExtService.createVartoOrders({
+        const varto_order = await (orderExtService as any).createVartoOrders({
             vendor_id: body.vendor_id,
             customer_id: body.customer_id || null,
+            customer_name: body.customer_name || null,
             customer_phone: body.customer_phone || null,
             delivery_address: body.delivery_address || {},
             delivery_notes: body.delivery_notes || null,
@@ -84,7 +85,7 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
         // Sipariş kalemlerini oluştur
         for (const item of body.items) {
             if (!item.product_name) continue
-            await orderExtService.createVartoOrderItems({
+            await (orderExtService as any).createVartoOrderItems({
                 varto_order_id: varto_order.id,
                 product_name: item.product_name,
                 quantity: item.quantity || 1,
@@ -95,7 +96,7 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
         }
 
         // Siparişi kalemlerle birlikte tekrar getir
-        const order = await orderExtService.retrieveVartoOrder(varto_order.id, {
+        const order = await (orderExtService as any).retrieveVartoOrder(varto_order.id, {
             relations: ["items"],
         })
 
@@ -105,7 +106,7 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
             const notificationService: VartoNotificationModuleService = req.scope.resolve(VARTO_NOTIFICATION_MODULE)
 
             // Vendor bilgilerini getir (push_token için)
-            const vendor = await vendorService.retrieveVendor(body.vendor_id)
+            const vendor = await (vendorService as any).retrieveVendor(body.vendor_id)
 
             // Fiyat ve içerik hesaplamalarını body.items'dan yap
             const itemCount = body.items.length
@@ -147,7 +148,7 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
 
             // Veritabanına bildirim kaydet (Push gönderiminden BAĞIMSIZ)
             try {
-                await notificationService.createVartoNotifications({
+                await (notificationService as any).createVartoNotifications({
                     title: notificationTitle,
                     message: notificationBody,
                     type: "order",

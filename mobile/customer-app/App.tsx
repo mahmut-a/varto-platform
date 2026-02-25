@@ -66,11 +66,13 @@ function CartStack({ customer }: { customer: any }) {
     )
 }
 
-function OrdersStack() {
+function OrdersStack({ customer }: { customer: any }) {
     const { colors } = useTheme()
     return (
         <Stack.Navigator screenOptions={{ headerStyle: { backgroundColor: colors.bg.base }, headerTintColor: colors.fg.base, headerShadowVisible: false, headerTitleStyle: { fontWeight: "600" as const, fontSize: 16 } }}>
-            <Stack.Screen name="OrderTracking" component={OrderTrackingScreen} options={{ title: "Sipariş Takip" }} />
+            <Stack.Screen name="OrderTracking" options={{ title: "Sipariş Takip" }}>
+                {(props) => <OrderTrackingScreen {...props} customer={customer} />}
+            </Stack.Screen>
         </Stack.Navigator>
     )
 }
@@ -87,7 +89,9 @@ function ProfileStack({ customer, onLogout, onUpdateCustomer }: { customer: any;
                 {(props) => <OrderHistoryScreen {...props} customer={customer} />}
             </Stack.Screen>
             <Stack.Screen name="Favorites" component={FavoritesScreen} options={{ title: "Favorilerim" }} />
-            <Stack.Screen name="OrderTrackingDetail" component={OrderTrackingScreen} options={{ title: "Sipariş Detayı" }} />
+            <Stack.Screen name="OrderTrackingDetail" options={{ title: "Sipariş Detayı" }}>
+                {(props) => <OrderTrackingScreen {...props} customer={customer} />}
+            </Stack.Screen>
         </Stack.Navigator>
     )
 }
@@ -274,7 +278,9 @@ function AppInner() {
                     <Tab.Screen name="CartTab" options={{ title: "Sepet" }}>
                         {() => <CartStack customer={customer} />}
                     </Tab.Screen>
-                    <Tab.Screen name="OrdersTab" component={OrdersStack} options={{ title: "Takip" }} />
+                    <Tab.Screen name="OrdersTab" options={{ title: "Takip" }}>
+                        {() => <OrdersStack customer={customer} />}
+                    </Tab.Screen>
                     <Tab.Screen name="ProfileTab" options={{ title: "Profil" }}>
                         {() => <ProfileStack customer={customer} onLogout={handleLogout} onUpdateCustomer={handleUpdateCustomer} />}
                     </Tab.Screen>

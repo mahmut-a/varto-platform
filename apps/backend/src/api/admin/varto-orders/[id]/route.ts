@@ -42,7 +42,7 @@ async function sendExpoPushNotification(pushToken: string, title: string, body: 
 export const GET = async (req: MedusaRequest, res: MedusaResponse) => {
     try {
         const orderExtService: OrderExtensionModuleService = req.scope.resolve(ORDER_EXTENSION_MODULE)
-        const varto_order = await orderExtService.retrieveVartoOrder(req.params.id, {
+        const varto_order = await (orderExtService as any).retrieveVartoOrder(req.params.id, {
             relations: ["items"],
         })
         res.json({ varto_order })
@@ -58,7 +58,7 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
         const body = req.body as any
 
         // Mevcut siparişi al (önceki durumu kontrol etmek için)
-        const existingOrder = await orderExtService.retrieveVartoOrder(req.params.id, {
+        const existingOrder = await (orderExtService as any).retrieveVartoOrder(req.params.id, {
             relations: ["items"],
         })
         const previousStatus = existingOrder?.varto_status
@@ -71,10 +71,10 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
         if (body.delivery_notes !== undefined) updateData.delivery_notes = body.delivery_notes
         if (body.metadata !== undefined) updateData.metadata = body.metadata
 
-        const varto_order = await orderExtService.updateVartoOrders(updateData)
+        const varto_order = await (orderExtService as any).updateVartoOrders(updateData)
 
         // Güncel halini getir
-        const updated = await orderExtService.retrieveVartoOrder(req.params.id, {
+        const updated = await (orderExtService as any).retrieveVartoOrder(req.params.id, {
             relations: ["items"],
         })
 
@@ -88,7 +88,7 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
                 // Vendor bilgisini al
                 let vendorName = "İşletme"
                 try {
-                    const vendor = await vendorService.retrieveVendor(updated.vendor_id)
+                    const vendor = await (vendorService as any).retrieveVendor(updated.vendor_id)
                     vendorName = vendor.name || "İşletme"
                 } catch (_) { }
 
@@ -113,11 +113,15 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
                     : (updated.delivery_address as string || "")
                 const shortAddr = addr.length > 50 ? addr.substring(0, 50) + "..." : addr
 
+                // Müşteri adı
+                const customerName = updated.customer_name || ""
+                const customerInfo = customerName ? `\n👤 ${customerName}` : ""
+
                 const notificationTitle = "🚀 Yeni Teslimat!"
-                const notificationBody = `${vendorName} — ${itemNames}${moreText}\n📍 ${shortAddr}\n💰 Toplam: ₺${grandTotal.toFixed(2)}`
+                const notificationBody = `${vendorName} — ${itemNames}${moreText}${customerInfo}\n📍 ${shortAddr}\n💰 Toplam: ₺${grandTotal.toFixed(2)}`
 
                 // Tüm aktif kuryeları al
-                const couriers = await courierService.listCouriers({
+                const couriers = await (courierService as any).listCouriers({
                     is_active: true,
                 })
 
@@ -145,7 +149,7 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
 
                     // DB'ye bildirim kaydet
                     try {
-                        await notificationService.createVartoNotifications({
+                        await (notificationService as any).createVartoNotifications({
                             title: notificationTitle,
                             message: notificationBody,
                             type: "order",
@@ -166,8 +170,6 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
             }
         }
 
-        res.json({ varto_order: updated })
-
         // ── Teslimat başladığında müşteriye bildirim gönder ──
         if (body.varto_status === "delivering" && previousStatus !== "delivering") {
             try {
@@ -176,11 +178,11 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
                 const notificationService: VartoNotificationModuleService = req.scope.resolve(VARTO_NOTIFICATION_MODULE)
 
                 if (updated.customer_id) {
-                    const customer = await customerService.retrieveCustomer(updated.customer_id)
+                    const customer = await (customerService as any).retrieveCustomer(updated.customer_id)
                     let courierName = "Kurye"
                     if (updated.courier_id) {
                         try {
-                            const courier = await courierService.retrieveCourier(updated.courier_id)
+                            const courier = await (courierService as any).retrieveCourier(updated.courier_id)
                             courierName = courier.name || "Kurye"
                         } catch (_) { }
                     }
@@ -208,7 +210,7 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
 
                     // DB'ye bildirim kaydet
                     try {
-                        await notificationService.createVartoNotifications({
+                        await (notificationService as any).createVartoNotifications({
                             title: notifTitle,
                             message: notifBody,
                             type: "order",
@@ -236,7 +238,7 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
                 const notificationService: VartoNotificationModuleService = req.scope.resolve(VARTO_NOTIFICATION_MODULE)
 
                 if (updated.customer_id) {
-                    const customer = await customerService.retrieveCustomer(updated.customer_id)
+                    const customer = await (customerService as any).retrieveCustomer(updated.customer_id)
 
                     const notifTitle = "✅ Siparişiniz Teslim Edildi!"
                     const notifBody = "Siparişiniz başarıyla teslim edildi. Afiyet olsun!"
@@ -258,7 +260,7 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
                     }
 
                     try {
-                        await notificationService.createVartoNotifications({
+                        await (notificationService as any).createVartoNotifications({
                             title: notifTitle,
                             message: notifBody,
                             type: "order",
@@ -278,6 +280,9 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
                 console.error("Müşteri teslim bildirim hatası:", notifErr?.message || notifErr)
             }
         }
+
+        // Tüm bildirimler gönderildikten sonra response gönder
+        res.json({ varto_order: updated })
     } catch (err: any) {
         console.error("Admin update order error:", err?.message || err)
         res.status(500).json({ message: err?.message || "Sipariş güncellenemedi" })
@@ -287,7 +292,7 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
 export const DELETE = async (req: MedusaRequest, res: MedusaResponse) => {
     try {
         const orderExtService: OrderExtensionModuleService = req.scope.resolve(ORDER_EXTENSION_MODULE)
-        await orderExtService.deleteVartoOrders(req.params.id)
+        await (orderExtService as any).deleteVartoOrders(req.params.id)
         res.status(200).json({ id: req.params.id, deleted: true })
     } catch (err: any) {
         console.error("Admin delete order error:", err?.message || err)

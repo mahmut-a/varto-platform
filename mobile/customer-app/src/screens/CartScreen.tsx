@@ -49,6 +49,7 @@ export default function CartScreen({ navigation, customer }: any) {
                     const order = await createOrder({
                         vendor_id: vendorId,
                         customer_id: customer?.id || null,
+                        customer_name: customer?.name || null,
                         customer_phone: customer?.phone || phone,
                         delivery_address: { address, phone },
                         delivery_notes: notes || null,
