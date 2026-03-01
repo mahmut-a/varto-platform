@@ -24,6 +24,8 @@ const VendorsPage = () => {
     const [modalOpen, setModalOpen] = useState(false)
     const [editing, setEditing] = useState<any>(null)
     const [form, setForm] = useState({ ...emptyVendor })
+    const [search, setSearch] = useState("")
+    const [categoryFilter, setCategoryFilter] = useState("")
 
     const fetchVendors = () => {
         setLoading(true)
@@ -79,36 +81,71 @@ const VendorsPage = () => {
         fetchVendors()
     }
 
+    const filtered = vendors.filter((v) => {
+        if (categoryFilter && v.category !== categoryFilter) return false
+        if (!search) return true
+        const q = search.toLowerCase()
+        return v.name.toLowerCase().includes(q) || (v.phone || "").includes(q) || (v.email?.toLowerCase() || "").includes(q) || (v.address?.toLowerCase() || "").includes(q)
+    })
+
+    const activeCount = vendors.filter((v) => v.is_active).length
+
     return (
         <Container className="divide-y p-0">
             <div className="flex items-center justify-between px-6 py-4">
-                <Heading level="h2">İşletmeler</Heading>
+                <div className="flex items-center gap-3">
+                    <Heading level="h2">İşletmeler</Heading>
+                    <Badge color="grey" size="2xsmall">{vendors.length} toplam · {activeCount} aktif</Badge>
+                </div>
                 <Button size="small" variant="primary" onClick={openCreate}>+ Yeni İşletme</Button>
+            </div>
+            <div className="px-6 py-3 flex gap-3">
+                <div className="flex-1">
+                    <Input placeholder="İsim, telefon, e-posta veya adres ile ara..." value={search} onChange={(e) => setSearch(e.target.value)} />
+                </div>
+                <div className="w-48">
+                    <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                        <Select.Trigger><Select.Value placeholder="Tüm Kategoriler" /></Select.Trigger>
+                        <Select.Content>
+                            <Select.Item value="">Tüm Kategoriler</Select.Item>
+                            {CATEGORY_OPTIONS.map((o) => <Select.Item key={o.value} value={o.value}>{o.label}</Select.Item>)}
+                        </Select.Content>
+                    </Select>
+                </div>
             </div>
             <div className="px-6 py-4">
                 {loading ? <Text className="text-ui-fg-muted">Yükleniyor...</Text> :
-                    vendors.length === 0 ? <Text className="text-ui-fg-muted">Henüz işletme yok.</Text> : (
+                    filtered.length === 0 ? <Text className="text-ui-fg-muted">İşletme bulunamadı.</Text> : (
                         <Table>
                             <Table.Header>
                                 <Table.Row>
                                     <Table.HeaderCell>İsim</Table.HeaderCell>
                                     <Table.HeaderCell>Kategori</Table.HeaderCell>
                                     <Table.HeaderCell>Telefon</Table.HeaderCell>
+                                    <Table.HeaderCell>E-posta</Table.HeaderCell>
                                     <Table.HeaderCell>Adres</Table.HeaderCell>
                                     <Table.HeaderCell>Aktif</Table.HeaderCell>
+                                    <Table.HeaderCell>Tarih</Table.HeaderCell>
                                     <Table.HeaderCell>İşlemler</Table.HeaderCell>
                                 </Table.Row>
                             </Table.Header>
                             <Table.Body>
                                 {vendors.map((v: any) => (
                                     <Table.Row key={v.id}>
-                                        <Table.Cell><Text size="small" weight="plus">{v.name}</Text></Table.Cell>
-                                        <Table.Cell><Text size="small">{CATEGORY_MAP[v.category] || v.category}</Text></Table.Cell>
+                                        <Table.Cell>
+                                            <div className="flex items-center gap-2">
+                                                {v.image_url && <img src={v.image_url} alt="" className="w-8 h-8 rounded-full object-cover" />}
+                                                <Text size="small" weight="plus">{v.name}</Text>
+                                            </div>
+                                        </Table.Cell>
+                                        <Table.Cell><Badge color="blue" size="2xsmall">{CATEGORY_MAP[v.category] || v.category}</Badge></Table.Cell>
                                         <Table.Cell><Text size="small" className="text-ui-fg-muted">{v.phone}</Text></Table.Cell>
+                                        <Table.Cell><Text size="small" className="text-ui-fg-muted">{v.email || "—"}</Text></Table.Cell>
                                         <Table.Cell><Text size="small" className="text-ui-fg-muted">{v.address}</Text></Table.Cell>
                                         <Table.Cell>
                                             <Switch checked={v.is_active} onCheckedChange={(val) => toggleActive(v.id, val)} />
                                         </Table.Cell>
+                                        <Table.Cell><Text size="small" className="text-ui-fg-muted">{new Date(v.created_at).toLocaleDateString("tr-TR")}</Text></Table.Cell>
                                         <Table.Cell>
                                             <div className="flex gap-2">
                                                 <Button size="small" variant="secondary" onClick={() => openEdit(v)}>Düzenle</Button>

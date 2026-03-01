@@ -19,12 +19,16 @@ const STATUS_OPTIONS = Object.entries(STATUS_MAP).map(([value, { label }]) => ({
 
 const VartoOrdersPage = () => {
     const [orders, setOrders] = useState<any[]>([])
+    const [vendors, setVendors] = useState<any[]>([])
+    const [couriers, setCouriers] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
     const [detailOpen, setDetailOpen] = useState(false)
     const [selected, setSelected] = useState<any>(null)
     const [items, setItems] = useState<any[]>([])
     const [itemForm, setItemForm] = useState({ product_name: "", quantity: 1, unit_price: 0, notes: "" })
     const [statusForm, setStatusForm] = useState("")
+    const [statusFilter, setStatusFilter] = useState("")
+    const [search, setSearch] = useState("")
 
     const fetchOrders = () => {
         setLoading(true)
@@ -35,7 +39,15 @@ const VartoOrdersPage = () => {
             .finally(() => setLoading(false))
     }
 
-    useEffect(() => { fetchOrders() }, [])
+    const fetchRelated = () => {
+        fetch("/admin/vendors", { credentials: "include" }).then((r) => r.json()).then((d) => setVendors(d.vendors || [])).catch(() => { })
+        fetch("/admin/couriers", { credentials: "include" }).then((r) => r.json()).then((d) => setCouriers(d.couriers || [])).catch(() => { })
+    }
+
+    useEffect(() => { fetchOrders(); fetchRelated() }, [])
+
+    const vendorName = (id: string) => vendors.find((v) => v.id === id)?.name || id?.slice(-6) || "—"
+    const courierName = (id: string) => couriers.find((c) => c.id === id)?.name || (id ? id.slice(-6) : "—")
 
     const openDetail = async (order: any) => {
         setSelected(order)
@@ -80,20 +92,56 @@ const VartoOrdersPage = () => {
         fetchOrders()
     }
 
+    const filtered = orders.filter((o) => {
+        if (statusFilter && o.varto_status !== statusFilter) return false
+        if (!search) return true
+        const q = search.toLowerCase()
+        return (o.customer_name?.toLowerCase() || "").includes(q) || (o.customer_phone || "").includes(q) || o.id.toLowerCase().includes(q)
+    })
+
+    // Order status summary
+    const statusCounts: Record<string, number> = {}
+    orders.forEach((o) => { statusCounts[o.varto_status] = (statusCounts[o.varto_status] || 0) + 1 })
+
     return (
         <Container className="divide-y p-0">
             <div className="flex items-center justify-between px-6 py-4">
-                <Heading level="h2">Varto Siparişleri</Heading>
-                <Text size="small" className="text-ui-fg-muted">{orders.length} sipariş</Text>
+                <div className="flex items-center gap-3">
+                    <Heading level="h2">Varto Siparişleri</Heading>
+                    <Badge color="grey" size="2xsmall">{orders.length} sipariş</Badge>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                    {Object.entries(statusCounts).map(([s, c]) => {
+                        const info = STATUS_MAP[s] || { label: s, color: "grey" as const }
+                        return <Badge key={s} color={info.color} size="2xsmall">{info.label}: {c}</Badge>
+                    })}
+                </div>
+            </div>
+            <div className="px-6 py-3 flex gap-3">
+                <div className="flex-1">
+                    <Input placeholder="Müşteri adı, telefon veya sipariş ID ile ara..." value={search} onChange={(e) => setSearch(e.target.value)} />
+                </div>
+                <div className="w-48">
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                        <Select.Trigger><Select.Value placeholder="Tüm Durumlar" /></Select.Trigger>
+                        <Select.Content>
+                            <Select.Item value="">Tüm Durumlar</Select.Item>
+                            {STATUS_OPTIONS.map((o) => <Select.Item key={o.value} value={o.value}>{o.label}</Select.Item>)}
+                        </Select.Content>
+                    </Select>
+                </div>
             </div>
             <div className="px-6 py-4">
                 {loading ? <Text className="text-ui-fg-muted">Yükleniyor...</Text> :
-                    orders.length === 0 ? <Text className="text-ui-fg-muted">Henüz sipariş yok.</Text> : (
+                    filtered.length === 0 ? <Text className="text-ui-fg-muted">Sipariş bulunamadı.</Text> : (
                         <Table>
                             <Table.Header>
                                 <Table.Row>
                                     <Table.HeaderCell>No</Table.HeaderCell>
                                     <Table.HeaderCell>Durum</Table.HeaderCell>
+                                    <Table.HeaderCell>Müşteri</Table.HeaderCell>
+                                    <Table.HeaderCell>İşletme</Table.HeaderCell>
+                                    <Table.HeaderCell>Kurye</Table.HeaderCell>
                                     <Table.HeaderCell>Adres</Table.HeaderCell>
                                     <Table.HeaderCell>Ödeme</Table.HeaderCell>
                                     <Table.HeaderCell>Tarih</Table.HeaderCell>
@@ -101,13 +149,21 @@ const VartoOrdersPage = () => {
                                 </Table.Row>
                             </Table.Header>
                             <Table.Body>
-                                {orders.map((o: any) => {
+                                {filtered.map((o: any) => {
                                     const status = STATUS_MAP[o.varto_status] || { label: o.varto_status, color: "grey" as const }
                                     const addr = o.delivery_address || {}
                                     return (
                                         <Table.Row key={o.id}>
                                             <Table.Cell><Text size="small" className="font-mono" weight="plus">#{o.id?.slice(-6).toUpperCase()}</Text></Table.Cell>
                                             <Table.Cell><Badge color={status.color} size="2xsmall">{status.label}</Badge></Table.Cell>
+                                            <Table.Cell>
+                                                <div>
+                                                    <Text size="small" weight="plus">{o.customer_name || "—"}</Text>
+                                                    {o.customer_phone && <Text size="xsmall" className="text-ui-fg-muted">{o.customer_phone}</Text>}
+                                                </div>
+                                            </Table.Cell>
+                                            <Table.Cell><Text size="small" className="text-ui-fg-muted">{vendorName(o.vendor_id)}</Text></Table.Cell>
+                                            <Table.Cell><Text size="small" className="text-ui-fg-muted">{o.courier_id ? courierName(o.courier_id) : "—"}</Text></Table.Cell>
                                             <Table.Cell><Text size="small" className="text-ui-fg-muted">{[addr.neighborhood, addr.street].filter(Boolean).join(", ")}</Text></Table.Cell>
                                             <Table.Cell><Text size="small">{o.payment_method?.toUpperCase()}</Text></Table.Cell>
                                             <Table.Cell><Text size="small" className="text-ui-fg-muted">{new Date(o.created_at).toLocaleDateString("tr-TR")}</Text></Table.Cell>
@@ -133,6 +189,33 @@ const VartoOrdersPage = () => {
                             <div className="flex w-full max-w-2xl flex-col gap-y-6">
                                 <Heading>Sipariş #{selected.id?.slice(-6).toUpperCase()}</Heading>
 
+                                {/* Order Info */}
+                                <div className="grid grid-cols-2 gap-4 rounded-lg border border-ui-border-base p-4">
+                                    <div>
+                                        <Text size="xsmall" className="text-ui-fg-muted">Müşteri</Text>
+                                        <Text size="small" weight="plus">{selected.customer_name || "—"}</Text>
+                                        {selected.customer_phone && <Text size="xsmall" className="text-ui-fg-muted">{selected.customer_phone}</Text>}
+                                    </div>
+                                    <div>
+                                        <Text size="xsmall" className="text-ui-fg-muted">İşletme</Text>
+                                        <Text size="small" weight="plus">{vendorName(selected.vendor_id)}</Text>
+                                    </div>
+                                    <div>
+                                        <Text size="xsmall" className="text-ui-fg-muted">Kurye</Text>
+                                        <Text size="small" weight="plus">{selected.courier_id ? courierName(selected.courier_id) : "Atanmadı"}</Text>
+                                    </div>
+                                    <div>
+                                        <Text size="xsmall" className="text-ui-fg-muted">Ödeme</Text>
+                                        <Text size="small" weight="plus">{selected.payment_method?.toUpperCase()}</Text>
+                                    </div>
+                                    {selected.delivery_notes && (
+                                        <div className="col-span-2">
+                                            <Text size="xsmall" className="text-ui-fg-muted">Teslimat Notu</Text>
+                                            <Text size="small">{selected.delivery_notes}</Text>
+                                        </div>
+                                    )}
+                                </div>
+
                                 {/* Status Update */}
                                 <div className="flex items-end gap-3">
                                     <div className="flex flex-col gap-y-1 flex-1">
@@ -151,6 +234,11 @@ const VartoOrdersPage = () => {
                                 <div className="flex flex-col gap-y-3">
                                     <div className="flex items-center justify-between">
                                         <Heading level="h3">Sipariş Kalemleri</Heading>
+                                        {items.length > 0 && (
+                                            <Text size="small" weight="plus" className="text-ui-fg-muted">
+                                                Toplam: ₺{items.reduce((sum: number, i: any) => sum + Number(i.total_price || 0), 0).toFixed(2)}
+                                            </Text>
+                                        )}
                                     </div>
 
                                     {items.length > 0 && (

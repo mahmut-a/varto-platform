@@ -28,6 +28,8 @@ const ListingsPage = () => {
     const [modalOpen, setModalOpen] = useState(false)
     const [editing, setEditing] = useState<any>(null)
     const [form, setForm] = useState({ ...emptyListing })
+    const [statusFilter, setStatusFilter] = useState("")
+    const [search, setSearch] = useState("")
 
     const fetchListings = () => {
         setLoading(true)
@@ -77,15 +79,47 @@ const ListingsPage = () => {
         fetchListings()
     }
 
+    const filtered = listings.filter((l) => {
+        if (statusFilter && l.status !== statusFilter) return false
+        if (!search) return true
+        const q = search.toLowerCase()
+        return l.title.toLowerCase().includes(q) || (l.contact_name?.toLowerCase() || "").includes(q) || (l.location?.toLowerCase() || "").includes(q)
+    })
+
+    // Status summary
+    const statusCounts: Record<string, number> = {}
+    listings.forEach((l) => { statusCounts[l.status] = (statusCounts[l.status] || 0) + 1 })
+
     return (
         <Container className="divide-y p-0">
             <div className="flex items-center justify-between px-6 py-4">
-                <Heading level="h2">İlanlar</Heading>
+                <div className="flex items-center gap-3">
+                    <Heading level="h2">İlanlar</Heading>
+                    <Badge color="grey" size="2xsmall">{listings.length} ilan</Badge>
+                    {Object.entries(statusCounts).map(([s, c]) => {
+                        const info = STATUS_MAP[s] || { label: s, color: "grey" as const }
+                        return <Badge key={s} color={info.color} size="2xsmall">{info.label}: {c}</Badge>
+                    })}
+                </div>
                 <Button size="small" variant="primary" onClick={openCreate}>+ Yeni İlan</Button>
+            </div>
+            <div className="px-6 py-3 flex gap-3">
+                <div className="flex-1">
+                    <Input placeholder="Başlık, iletişim adı veya konum ile ara..." value={search} onChange={(e) => setSearch(e.target.value)} />
+                </div>
+                <div className="w-48">
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                        <Select.Trigger><Select.Value placeholder="Tüm Durumlar" /></Select.Trigger>
+                        <Select.Content>
+                            <Select.Item value="">Tüm Durumlar</Select.Item>
+                            {STATUS_OPTIONS.map((o) => <Select.Item key={o.value} value={o.value}>{o.label}</Select.Item>)}
+                        </Select.Content>
+                    </Select>
+                </div>
             </div>
             <div className="px-6 py-4">
                 {loading ? <Text className="text-ui-fg-muted">Yükleniyor...</Text> :
-                    listings.length === 0 ? <Text className="text-ui-fg-muted">Henüz ilan yok.</Text> : (
+                    filtered.length === 0 ? <Text className="text-ui-fg-muted">İlan bulunamadı.</Text> : (
                         <Table>
                             <Table.Header>
                                 <Table.Row>
@@ -95,24 +129,38 @@ const ListingsPage = () => {
                                     <Table.HeaderCell>Konum</Table.HeaderCell>
                                     <Table.HeaderCell>İletişim</Table.HeaderCell>
                                     <Table.HeaderCell>Durum</Table.HeaderCell>
+                                    <Table.HeaderCell>Resim</Table.HeaderCell>
+                                    <Table.HeaderCell>Oluşturma</Table.HeaderCell>
+                                    <Table.HeaderCell>Bitiş</Table.HeaderCell>
                                     <Table.HeaderCell>İşlemler</Table.HeaderCell>
                                 </Table.Row>
                             </Table.Header>
                             <Table.Body>
-                                {listings.map((l: any) => {
+                                {filtered.map((l: any) => {
                                     const status = STATUS_MAP[l.status] || { label: l.status, color: "grey" as const }
+                                    const imageCount = Array.isArray(l.images) ? l.images.length : 0
                                     return (
                                         <Table.Row key={l.id}>
                                             <Table.Cell><Text size="small" weight="plus">{l.title}</Text></Table.Cell>
-                                            <Table.Cell><Text size="small">{CATEGORY_MAP[l.category] || l.category}</Text></Table.Cell>
+                                            <Table.Cell><Badge color="blue" size="2xsmall">{CATEGORY_MAP[l.category] || l.category}</Badge></Table.Cell>
                                             <Table.Cell><Text size="small">{l.price != null ? `₺${Number(l.price).toLocaleString("tr-TR")}` : "—"}</Text></Table.Cell>
                                             <Table.Cell><Text size="small" className="text-ui-fg-muted">{l.location}</Text></Table.Cell>
-                                            <Table.Cell><Text size="small" className="text-ui-fg-muted">{l.contact_name}</Text></Table.Cell>
+                                            <Table.Cell>
+                                                <div>
+                                                    <Text size="small">{l.contact_name}</Text>
+                                                    <Text size="xsmall" className="text-ui-fg-muted">{l.contact_phone}</Text>
+                                                </div>
+                                            </Table.Cell>
                                             <Table.Cell><Badge color={status.color} size="2xsmall">{status.label}</Badge></Table.Cell>
                                             <Table.Cell>
+                                                {imageCount > 0 ? <Badge color="purple" size="2xsmall">{imageCount} resim</Badge> : <Text size="small" className="text-ui-fg-muted">—</Text>}
+                                            </Table.Cell>
+                                            <Table.Cell><Text size="small" className="text-ui-fg-muted">{new Date(l.created_at).toLocaleDateString("tr-TR")}</Text></Table.Cell>
+                                            <Table.Cell><Text size="small" className="text-ui-fg-muted">{l.expires_at ? new Date(l.expires_at).toLocaleDateString("tr-TR") : "—"}</Text></Table.Cell>
+                                            <Table.Cell>
                                                 <div className="flex gap-2">
-                                                    <Button size="small" variant="primary" onClick={() => updateStatus(l.id, "approved")}>Onayla</Button>
-                                                    <Button size="small" variant="secondary" onClick={() => updateStatus(l.id, "rejected")}>Reddet</Button>
+                                                    {l.status === "pending" && <Button size="small" variant="primary" onClick={() => updateStatus(l.id, "approved")}>Onayla</Button>}
+                                                    {l.status === "pending" && <Button size="small" variant="secondary" onClick={() => updateStatus(l.id, "rejected")}>Reddet</Button>}
                                                     <Button size="small" variant="secondary" onClick={() => openEdit(l)}>Düzenle</Button>
                                                     <Button size="small" variant="danger" onClick={() => handleDelete(l.id)}>Sil</Button>
                                                 </div>

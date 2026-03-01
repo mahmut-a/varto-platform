@@ -15,10 +15,12 @@ const emptyCourier = { name: "", phone: "", email: "", vehicle_type: "motorcycle
 
 const CouriersPage = () => {
     const [couriers, setCouriers] = useState<any[]>([])
+    const [orders, setOrders] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
     const [modalOpen, setModalOpen] = useState(false)
     const [editing, setEditing] = useState<any>(null)
     const [form, setForm] = useState({ ...emptyCourier })
+    const [search, setSearch] = useState("")
 
     const fetchCouriers = () => {
         setLoading(true)
@@ -29,7 +31,17 @@ const CouriersPage = () => {
             .finally(() => setLoading(false))
     }
 
-    useEffect(() => { fetchCouriers() }, [])
+    const fetchOrders = () => {
+        fetch("/admin/varto-orders", { credentials: "include" })
+            .then((r) => r.json())
+            .then((d) => setOrders(d.varto_orders || []))
+            .catch(() => { })
+    }
+
+    useEffect(() => { fetchCouriers(); fetchOrders() }, [])
+
+    const getDeliveredCount = (courierId: string) => orders.filter((o) => o.courier_id === courierId && o.varto_status === "delivered").length
+    const getActiveCount = (courierId: string) => orders.filter((o) => o.courier_id === courierId && !["delivered", "cancelled"].includes(o.varto_status)).length
 
     const openCreate = () => { setEditing(null); setForm({ ...emptyCourier }); setModalOpen(true) }
     const openEdit = (c: any) => {
@@ -57,15 +69,30 @@ const CouriersPage = () => {
         fetchCouriers()
     }
 
+    const filtered = couriers.filter((c) => {
+        if (!search) return true
+        const q = search.toLowerCase()
+        return c.name.toLowerCase().includes(q) || (c.phone || "").includes(q) || (c.email?.toLowerCase() || "").includes(q)
+    })
+
+    const activeCount = couriers.filter((c) => c.is_active).length
+    const availableCount = couriers.filter((c) => c.is_available).length
+
     return (
         <Container className="divide-y p-0">
             <div className="flex items-center justify-between px-6 py-4">
-                <Heading level="h2">Kuryeler</Heading>
+                <div className="flex items-center gap-3">
+                    <Heading level="h2">Kuryeler</Heading>
+                    <Badge color="grey" size="2xsmall">{couriers.length} toplam · {activeCount} aktif · {availableCount} müsait</Badge>
+                </div>
                 <Button size="small" variant="primary" onClick={openCreate}>+ Yeni Kurye</Button>
+            </div>
+            <div className="px-6 py-3">
+                <Input placeholder="İsim, telefon veya e-posta ile ara..." value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
             <div className="px-6 py-4">
                 {loading ? <Text className="text-ui-fg-muted">Yükleniyor...</Text> :
-                    couriers.length === 0 ? <Text className="text-ui-fg-muted">Henüz kurye yok.</Text> : (
+                    filtered.length === 0 ? <Text className="text-ui-fg-muted">Kurye bulunamadı.</Text> : (
                         <Table>
                             <Table.Header>
                                 <Table.Row>
@@ -73,24 +100,30 @@ const CouriersPage = () => {
                                     <Table.HeaderCell>Telefon</Table.HeaderCell>
                                     <Table.HeaderCell>E-posta</Table.HeaderCell>
                                     <Table.HeaderCell>Araç</Table.HeaderCell>
+                                    <Table.HeaderCell>Teslim</Table.HeaderCell>
+                                    <Table.HeaderCell>Aktif Sipariş</Table.HeaderCell>
                                     <Table.HeaderCell>Aktif</Table.HeaderCell>
                                     <Table.HeaderCell>Müsait</Table.HeaderCell>
+                                    <Table.HeaderCell>Kayıt</Table.HeaderCell>
                                     <Table.HeaderCell>İşlemler</Table.HeaderCell>
                                 </Table.Row>
                             </Table.Header>
                             <Table.Body>
-                                {couriers.map((c: any) => (
+                                {filtered.map((c: any) => (
                                     <Table.Row key={c.id}>
                                         <Table.Cell><Text size="small" weight="plus">{c.name}</Text></Table.Cell>
                                         <Table.Cell><Text size="small" className="text-ui-fg-muted">{c.phone}</Text></Table.Cell>
                                         <Table.Cell><Text size="small" className="text-ui-fg-muted">{c.email || "—"}</Text></Table.Cell>
-                                        <Table.Cell><Text size="small">{VEHICLE_MAP[c.vehicle_type] || c.vehicle_type}</Text></Table.Cell>
+                                        <Table.Cell><Badge color="blue" size="2xsmall">{VEHICLE_MAP[c.vehicle_type] || c.vehicle_type}</Badge></Table.Cell>
+                                        <Table.Cell><Badge color="green" size="2xsmall">{getDeliveredCount(c.id)}</Badge></Table.Cell>
+                                        <Table.Cell><Badge color={getActiveCount(c.id) > 0 ? "orange" : "grey"} size="2xsmall">{getActiveCount(c.id)}</Badge></Table.Cell>
                                         <Table.Cell>
                                             <Switch checked={c.is_active} onCheckedChange={(v) => toggleField(c.id, "is_active", v)} />
                                         </Table.Cell>
                                         <Table.Cell>
                                             <Switch checked={c.is_available} onCheckedChange={(v) => toggleField(c.id, "is_available", v)} />
                                         </Table.Cell>
+                                        <Table.Cell><Text size="small" className="text-ui-fg-muted">{new Date(c.created_at).toLocaleDateString("tr-TR")}</Text></Table.Cell>
                                         <Table.Cell>
                                             <div className="flex gap-2">
                                                 <Button size="small" variant="secondary" onClick={() => openEdit(c)}>Düzenle</Button>

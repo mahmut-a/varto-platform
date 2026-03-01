@@ -17,10 +17,13 @@ const emptyAppointment = { vendor_id: "", customer_id: "", service_name: "", dat
 const AppointmentsPage = () => {
     const [appointments, setAppointments] = useState<any[]>([])
     const [vendors, setVendors] = useState<any[]>([])
+    const [customers, setCustomers] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
     const [modalOpen, setModalOpen] = useState(false)
     const [editing, setEditing] = useState<any>(null)
     const [form, setForm] = useState({ ...emptyAppointment })
+    const [statusFilter, setStatusFilter] = useState("")
+    const [search, setSearch] = useState("")
 
     const fetchAppointments = () => {
         setLoading(true)
@@ -31,14 +34,12 @@ const AppointmentsPage = () => {
             .finally(() => setLoading(false))
     }
 
-    const fetchVendors = () => {
-        fetch("/admin/vendors", { credentials: "include" })
-            .then((r) => r.json())
-            .then((d) => setVendors(d.vendors || []))
-            .catch(() => { })
+    const fetchRelated = () => {
+        fetch("/admin/vendors", { credentials: "include" }).then((r) => r.json()).then((d) => setVendors(d.vendors || [])).catch(() => { })
+        fetch("/admin/customers", { credentials: "include" }).then((r) => r.json()).then((d) => setCustomers(d.customers || [])).catch(() => { })
     }
 
-    useEffect(() => { fetchAppointments(); fetchVendors() }, [])
+    useEffect(() => { fetchAppointments(); fetchRelated() }, [])
 
     const openCreate = () => { setEditing(null); setForm({ ...emptyAppointment }); setModalOpen(true) }
     const openEdit = (a: any) => {
@@ -70,21 +71,67 @@ const AppointmentsPage = () => {
     }
 
     const vendorName = (id: string) => vendors.find((v) => v.id === id)?.name || id?.slice(-6) || "—"
+    const customerName = (id: string) => {
+        const c = customers.find((c) => c.id === id)
+        return c ? (c.name || c.phone || id.slice(-6)) : (id ? id.slice(-6) : "—")
+    }
+
+    // Check if a date is today
+    const isToday = (dateStr: string) => {
+        const d = new Date(dateStr)
+        const today = new Date()
+        return d.toDateString() === today.toDateString()
+    }
+
+    const filtered = appointments.filter((a) => {
+        if (statusFilter && a.status !== statusFilter) return false
+        if (!search) return true
+        const q = search.toLowerCase()
+        return (a.service_name?.toLowerCase() || "").includes(q) || vendorName(a.vendor_id).toLowerCase().includes(q)
+    })
+
+    // Status summary
+    const statusCounts: Record<string, number> = {}
+    appointments.forEach((a) => { statusCounts[a.status] = (statusCounts[a.status] || 0) + 1 })
+    const todayCount = appointments.filter((a) => isToday(a.date)).length
 
     return (
         <Container className="divide-y p-0">
             <div className="flex items-center justify-between px-6 py-4">
-                <Heading level="h2">Randevular</Heading>
+                <div className="flex items-center gap-3">
+                    <Heading level="h2">Randevular</Heading>
+                    <Badge color="grey" size="2xsmall">{appointments.length} toplam</Badge>
+                    {todayCount > 0 && <Badge color="green" size="2xsmall">Bugün: {todayCount}</Badge>}
+                    {Object.entries(statusCounts).map(([s, c]) => {
+                        const info = STATUS_MAP[s] || { label: s, color: "grey" as const }
+                        return <Badge key={s} color={info.color} size="2xsmall">{info.label}: {c}</Badge>
+                    })}
+                </div>
                 <Button size="small" variant="primary" onClick={openCreate}>+ Yeni Randevu</Button>
+            </div>
+            <div className="px-6 py-3 flex gap-3">
+                <div className="flex-1">
+                    <Input placeholder="Hizmet adı veya işletme ile ara..." value={search} onChange={(e) => setSearch(e.target.value)} />
+                </div>
+                <div className="w-48">
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                        <Select.Trigger><Select.Value placeholder="Tüm Durumlar" /></Select.Trigger>
+                        <Select.Content>
+                            <Select.Item value="">Tüm Durumlar</Select.Item>
+                            {STATUS_OPTIONS.map((o) => <Select.Item key={o.value} value={o.value}>{o.label}</Select.Item>)}
+                        </Select.Content>
+                    </Select>
+                </div>
             </div>
             <div className="px-6 py-4">
                 {loading ? <Text className="text-ui-fg-muted">Yükleniyor...</Text> :
-                    appointments.length === 0 ? <Text className="text-ui-fg-muted">Henüz randevu yok.</Text> : (
+                    filtered.length === 0 ? <Text className="text-ui-fg-muted">Randevu bulunamadı.</Text> : (
                         <Table>
                             <Table.Header>
                                 <Table.Row>
                                     <Table.HeaderCell>Hizmet</Table.HeaderCell>
                                     <Table.HeaderCell>İşletme</Table.HeaderCell>
+                                    <Table.HeaderCell>Müşteri</Table.HeaderCell>
                                     <Table.HeaderCell>Tarih</Table.HeaderCell>
                                     <Table.HeaderCell>Saat</Table.HeaderCell>
                                     <Table.HeaderCell>Süre</Table.HeaderCell>
@@ -93,14 +140,21 @@ const AppointmentsPage = () => {
                                 </Table.Row>
                             </Table.Header>
                             <Table.Body>
-                                {appointments.map((a: any) => {
+                                {filtered.map((a: any) => {
                                     const status = STATUS_MAP[a.status] || { label: a.status, color: "grey" as const }
                                     const date = new Date(a.date)
+                                    const today = isToday(a.date)
                                     return (
-                                        <Table.Row key={a.id}>
+                                        <Table.Row key={a.id} className={today ? "bg-ui-bg-highlight" : ""}>
                                             <Table.Cell><Text size="small" weight="plus">{a.service_name}</Text></Table.Cell>
                                             <Table.Cell><Text size="small" className="text-ui-fg-muted">{vendorName(a.vendor_id)}</Text></Table.Cell>
-                                            <Table.Cell><Text size="small">{date.toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" })}</Text></Table.Cell>
+                                            <Table.Cell><Text size="small" className="text-ui-fg-muted">{customerName(a.customer_id)}</Text></Table.Cell>
+                                            <Table.Cell>
+                                                <div className="flex items-center gap-1">
+                                                    <Text size="small">{date.toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" })}</Text>
+                                                    {today && <Badge color="green" size="2xsmall">Bugün</Badge>}
+                                                </div>
+                                            </Table.Cell>
                                             <Table.Cell><Text size="small" className="text-ui-fg-muted">{date.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}</Text></Table.Cell>
                                             <Table.Cell><Text size="small">{a.duration_minutes} dk</Text></Table.Cell>
                                             <Table.Cell><Badge color={status.color} size="2xsmall">{status.label}</Badge></Table.Cell>
@@ -139,6 +193,16 @@ const AppointmentsPage = () => {
                                     </Select.Content>
                                 </Select>
                             </div>
+                            <div className="flex flex-col gap-y-1">
+                                <Label>Müşteri</Label>
+                                <Select value={form.customer_id} onValueChange={(val) => setForm({ ...form, customer_id: val })}>
+                                    <Select.Trigger><Select.Value placeholder="Müşteri seçin (opsiyonel)" /></Select.Trigger>
+                                    <Select.Content>
+                                        <Select.Item value="">Seçilmedi</Select.Item>
+                                        {customers.map((c) => <Select.Item key={c.id} value={c.id}>{c.name || c.phone}</Select.Item>)}
+                                    </Select.Content>
+                                </Select>
+                            </div>
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="flex flex-col gap-y-1">
                                     <Label>Tarih ve Saat *</Label>
@@ -157,10 +221,6 @@ const AppointmentsPage = () => {
                                         {STATUS_OPTIONS.map((o) => <Select.Item key={o.value} value={o.value}>{o.label}</Select.Item>)}
                                     </Select.Content>
                                 </Select>
-                            </div>
-                            <div className="flex flex-col gap-y-1">
-                                <Label>Müşteri ID</Label>
-                                <Input value={form.customer_id} onChange={(e) => setForm({ ...form, customer_id: e.target.value })} placeholder="Müşteri ID (opsiyonel)" />
                             </div>
                             <div className="flex flex-col gap-y-1">
                                 <Label>Notlar</Label>
